@@ -1,0 +1,113 @@
+body {
+  margin: 0;
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+  line-height: 1.7;
+  background: #f4f6f9;   /* 柔和灰白背景 */
+  color: #222;
+}
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 30px 20px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+h1 {
+  margin-top: 0;
+  font-size: 28px;
+  color: #003366;
+  border-bottom: 2px solid #e0e6ef;
+  padding-bottom: 10px;
+}
+
+h2 {
+  margin-top: 0;
+  font-size: 22px;
+  color: #004c99;
+  margin-bottom: 10px;
+}
+
+nav {
+  margin: 15px 0 25px;
+  padding: 8px 0;
+  border-bottom: 1px solid #ddd;
+}
+
+nav a {
+  margin-right: 15px;
+  color: #0066cc;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+nav a:hover {
+  background: #e6f0ff;
+  text-decoration: none;
+}
+
+.part {
+  border: 1px solid #e0e0e0;
+  padding: 18px;
+  margin-bottom: 25px;
+  border-radius: 8px;
+  background: #fafbfc;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+@media (max-width: 700px) {
+  .grid-2 {
+    grid-template-columns: 1fr; /* 小屏单列 */
+  }
+}
+
+figure {
+  margin: 0;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+figure img, figure video {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+figcaption {
+  font-size: 14px;
+  color: #555;
+  text-align: center;
+  padding: 6px;
+  background: #f9f9f9;
+}
+
+.explain {
+  border-left: 4px solid #0066cc;
+  padding: 12px 15px;
+  margin-top: 15px;
+  background: #f0f6ff;
+  border-radius: 4px;
+}
+
+.footer {
+  font-size: 12px;
+  color: #777;
+  text-align: center;
+  margin-top: 30px;
+  padding-top: 15px;
+  border-top: 1px solid #ddd;
+}

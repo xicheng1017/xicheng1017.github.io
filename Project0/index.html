@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CS280A Project 0 — Perspective Experiments</title>
+  <link rel="stylesheet" href="../shared.css">
+  <link rel="stylesheet" href="./project0.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>CS280A Project 0 — Becoming Friends with Your Camera</h1>
+      <div class="meta">Name: <strong>Xi Cheng</strong> · Date: <strong>2025-09-02</strong></div>
+    </header>
+
+    <section id="part1" class="part" aria-labelledby="h2-part1">
+      <h2 id="h2-part1">Part 1: Selfie — The Wrong Way vs. The Right Way</h2>
+      <p class="lead">Take a picture of your friend (or yourself) from close up. You get a typical distorted selfie image. Now step back several feet from your subject, zoom in, and take a second picture. Try to get the face in the second photo to be the same size as in the first photo. If you've done things right, the second portrait should look much better than the first one. Think about why this is.</p>
+      <div class="grid-2" role="group" aria-label="Selfie comparison">
+        <figure>
+          <img src="media/part1_1.jpg" alt="Close-up selfie taken with a wide lens from short distance" loading="lazy" />
+          <figcaption>Close-up (wide / short distance)</figcaption>
+        </figure>
+        <figure>
+          <img src="media/part1_2.jpg" alt="Portrait taken from farther away with zoom; similar face size" loading="lazy" />
+          <figcaption>Step back + zoom (tele / longer distance)</figcaption>
+        </figure>
+      </div>
+
+      <div class="explain">
+        <h3>Why does the second look better? </h3>
+        <p>Stepping back reduces perspective distortion. When the camera is very close, features nearer the lens (nose, cheeks) are exaggerated while the ears recede. By increasing camera-to-subject distance and using a longer focal length to keep the framing, relative distances across the face become more similar, so proportions look more natural.</p>
+      </div>
+    </section>
+
+    <section id="part2" class="part" aria-labelledby="h2-part2">
+      <h2 id="h2-part2">Part 2: Architectural Perspective Compression</h2>
+      <p class="lead">Let's repeat the same procedure in reverse, for an urban scene. Pick a nice view down a long street (or a walking path on campus), zoom in, and take a photo. Now, walk down the street in the direction of your first shot, and take a second photo without zoom, such that the scene in the two photos appears approximately the same size. The first picture should look flattened, or compressed, compared to the second. Again, think about why.</p>
+
+      <div class="grid-2" role="group" aria-label="Architecture comparison">
+        <figure>
+          <img src="media/part2_1.jpg" alt="Urban scene taken from far away with zoom, creating a compressed look" loading="lazy" />
+          <figcaption>Zoomed from far (tele) — flattened look</figcaption>
+        </figure>
+        <figure>
+          <img src="media/part2_2.jpg" alt="Urban scene taken closer without zoom, showing stronger depth cues" loading="lazy" />
+          <figcaption>Closer without zoom (wide) — deeper look</figcaption>
+        </figure>
+      </div>
+
+      <div class="explain">
+        <h3>Why does the telephoto shot look compressed? </h3>
+        <p>From far away with a longer focal length, the ratio between distances to near and far objects is smaller, so their apparent sizes differ less. Depth cues (convergence, relative size change) are reduced, making the scene look “compressed.” Moving closer with a wider view increases those ratios and exaggerates depth.</p>
+      </div>
+    </section>
+
+    <section id="part3" class="part" aria-labelledby="h2-part3">
+      <h2 id="h2-part3">Part 3: The Dolly Zoom ("Vertigo shot")</h2>
+      <p class="lead">Move the camera while inversely adjusting focal length so the subject size stays constant but the background scale changes dramatically.</p>
+
+      <figure>
+        <img src="media/part3_Hitchcock.gif" alt="Dolly zoom animated gif" loading="lazy" />
+        <figcaption>Dolly zoom effect (animated GIF)</figcaption>
+      </figure>
+
+      <div class="explain">
+        <h3>What’s changing during a dolly zoom? </h3>
+        <p>A dolly zoom changes perspective while holding subject size constant: the camera physically moves as the focal length is adjusted in the opposite direction. Because perspective depends on camera position, the background expands or collapses dramatically while the subject stays the same size.</p>
+      </div>
+    </section>
+
+    <p class="footer">This page is responsive and print-friendly.</p>
+  </div>
+</body>
+</html>
