@@ -1,0 +1,27 @@
+
+.part figure img,
+.part figure video {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+
+#part1 figure img { width: 320px; }
+#part2 figure img { width: 360px; }
+#part3 figure img { width: 420px; }
+
+
+@media (max-width: 680px) {
+  .grid-2 { 
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  #part1 figure img,
+  #part2 figure img,
+  #part3 figure img {
+    width: 100%;
+  }
+}

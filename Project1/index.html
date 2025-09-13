@@ -1,0 +1,781 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CS280A Project 1 — Images of the Russian Empire</title>
+
+  <link rel="stylesheet" href="../shared.css">
+  <link rel="stylesheet" href="./project1.css">
+
+  <style>
+    :root { --gap: 12px; --caption: #555; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+    header h1 { margin-bottom: 4px; }
+    header .meta { color: #666; margin-bottom: 20px; }
+
+    .part { margin: 32px 0 48px; }
+    .lead { color: #444; }
+    figure { margin: 0; }
+    figure img { width: 100%; height: auto; border-radius: 8px; display:block; }
+    figcaption { font-size: 0.92rem; color: var(--caption); margin-top: 6px; }
+    .shifts { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; line-height: 1.3; }
+    .shifts div { display: block; }
+
+    .subhead { margin: 12px 0 8px; color: #333; font-size: 1.05rem; }
+
+    .grid-3, .grid-4, .grid-2 { display: grid; gap: var(--gap); }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-4 { grid-template-columns: repeat(4, 1fr); }
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+    @media (max-width: 900px){
+      .grid-4 { grid-template-columns: repeat(2, 1fr); }
+      .grid-3 { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 640px){
+      .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
+    }
+
+    .lightbox { cursor: zoom-in; display: block; }
+    #lb { position: fixed; inset: 0; background: rgba(0,0,0,.8);
+          display: none; align-items: center; justify-content: center; z-index: 9999; }
+    #lb img { max-width: 92vw; max-height: 92vh; border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.45); }
+    #lb.visible { display: flex; }
+
+    .footer { color: #888; margin: 24px 0 12px; text-align: center; }
+
+    .grid-groups-2 { display: grid; gap: var(--gap); grid-template-columns: repeat(2, 1fr); }
+    @media (max-width: 900px){ .grid-groups-2 { grid-template-columns: 1fr; } }
+    .pair { display: grid; gap: var(--gap); grid-template-columns: 1fr 1fr; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap); }
+    .contrast-header { text-align: center; margin-bottom: 8px; }
+    .contrast-header div { font-size: 1rem; color: #333; }
+  </style>
+
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <h1>CS280A Project 1 — Images of the Russian Empire</h1>
+      <div class="meta">Name: <strong>Xi Cheng</strong> · Date: <strong>2025-09-12</strong></div>
+    </header>
+
+    <!-- =================== Part 1 =================== -->
+    <section id="part1" class="part">
+      <h2>Part 1 — Single-Scale Alignment (low-res)</h2>
+        <div class="explain">
+          <h3>Method</h3>
+          <p>
+            Our method aligns one image channel to another using 
+            <strong>Normalized Cross-Correlation (NCC)</strong>.
+          </p>
+          <ol>
+            <li>
+              <strong>NCC Similarity:</strong>  
+              For two image patches <em>a</em> and <em>b</em>, we compute their similarity
+              by multiplying the pixel values element-wise, summing the result, and 
+              normalizing by the product of their magnitudes.  
+              Intuitively, this measures how strongly the two patches are correlated. 
+              Larger values indicate better alignment.
+            </li>
+            <li>
+              <strong>Cropping:</strong>  
+              Before shifting, we remove image margins to avoid border artifacts caused by 
+              wrapping during displacement.
+            </li>
+            <li>
+              <strong>Exhaustive Search:</strong>  
+              We test all possible horizontal and vertical displacements within a search window. 
+              For each candidate shift, we compute the NCC score on the cropped region 
+              and record the best score.
+            </li>
+            <li>
+              <strong>Apply Best Shift:</strong>  
+              Finally, we apply the displacement corresponding to the highest NCC score 
+              using the <code>np.roll</code> function, producing the aligned image.
+            </li>
+          </ol>
+            <p>
+              Main functions:  
+              <ul>
+                <li><code>_ncc</code>: Computes the normalized cross-correlation score between two image patches, providing a measure of similarity that is robust to overall brightness differences.</li>
+                <li><code>single_shiftsearch</code>: Performs an exhaustive search over all candidate displacements within a given window, calls <code>_ncc</code> for each candidate, and returns the shift with the highest similarity score.</li>
+                <li><code>single_align</code>: Applies the chosen displacement to an image using <code>np.roll</code>, aligning it to the reference channel and producing the final registered image.</li>
+              </ul>
+            </p>
+        </div>
+
+
+
+
+      <h3 class="subhead">Results</h3>
+      <div class="grid-3">
+        <figure>
+          <a href="media/cathedral_aligned.jpg" class="lightbox">
+            <img src="media/cathedral_aligned.jpg" alt="Single-scale result 1">
+          </a>
+          <figcaption>
+            <div>cathedral.jpg</div>
+            <div class="shifts">
+              <div>G shift: (2, 5)</div>
+              <div>R shift: (3, 12)</div>
+            </div>
+          </figcaption>
+        </figure>
+
+        <figure>
+          <a href="media/monastery_aligned.jpg" class="lightbox">
+            <img src="media/monastery_aligned.jpg" alt="Single-scale result 2">
+          </a>
+          <figcaption>
+            <div>monastery.jpg</div>
+            <div class="shifts">
+              <div>G shift: (2, -3)</div>
+              <div>R shift: (2, 3)</div>
+            </div>
+          </figcaption>
+        </figure>
+
+        <figure>
+          <a href="media/tobolsk_aligned.jpg" class="lightbox">
+            <img src="media/tobolsk_aligned.jpg" alt="Single-scale result 3">
+          </a>
+          <figcaption>
+            <div>tobolsk.jpg </div>
+            <div class="shifts">
+              <div>G shift: (2, 3)</div>
+              <div>R shift: (3, 6)</div>
+            </div>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- =================== Part 2 =================== -->
+    <section id="part2" class="part">
+      <h2>Part 2 — Multiscale Pyramid (large images)</h2>
+        <div class="explain">
+          <h3>Method</h3>
+          <p>
+            We implemented a <strong>coarse-to-fine pyramid alignment</strong> method
+            using Normalized Cross-Correlation (NCC). The algorithm works by
+            estimating large shifts on downsampled images and progressively refining
+            them at higher resolutions.
+          </p>
+        
+          <ol>
+            <li>
+              <strong>Pyramid Construction:</strong>  
+              The image and reference are recursively downsampled by a factor of 2 using
+              <code>skimage.transform.rescale</code> (with anti-aliasing and preserved range).
+              Downsampling continues until the smallest dimension is below
+              <code>min_size</code> (default: 128 pixels). The number of levels can also
+              be set manually through <code>levels</code>.
+            </li>
+        
+            <li>
+              <strong>Shift Boundaries:</strong>  
+              At each level, the maximum search range is proportional to the current
+              image size: <code>max_shift = max_shift_ratio × max(height, width)</code>.
+              By default <code>max_shift_ratio=0.04</code>, so for a 2000×2000 image the
+              maximum displacement tested per level is about 80 pixels.
+            </li>
+        
+            <li>
+              <strong>Coarse-to-Fine Alignment:</strong>  
+              At the coarsest level, we run the <code>single_shiftsearch</code> function
+              to get an initial estimate. The shift is then doubled and passed down to
+              the next finer level. This provides a good initialization for local search.
+            </li>
+        
+            <li>
+              <strong>Local Refinement:</strong>  
+              Around the propagated shift, we search within a small window of size
+              <code>±refine_range</code> (default: 8 pixels). This ensures fine-tuning of
+              alignment without needing an exhaustive search across the whole image.
+            </li>
+        
+            <li>
+              <strong>Cropping:</strong>  
+              Before NCC computation, we crop image borders by a fraction
+              <code>crop_rate</code> (default: 5–6% of height and width). This prevents
+              edge artifacts from influencing the similarity score.
+            </li>
+        
+            <li>
+              <strong>Final Alignment:</strong>  
+              After recursive refinement, the final displacement is applied to the
+              original image using <code>np.roll</code>. The function
+              <code>pyramid_align</code> outputs both the aligned image and the
+              estimated shift vector.
+            </li>
+          </ol>
+            <p>
+              <strong>Main supporting functions:</strong>
+              <ul>
+                <li><code>downsample</code>: Uses <code>skimage.transform.rescale</code> to reduce the image size by a factor (default 2) with anti-aliasing and preserved range. This allows the algorithm to capture large displacements efficiently at coarse scales.</li>
+                
+                <li><code>pyramid_shiftsearch</code>: The core recursive function. It first determines the number of pyramid levels automatically (or uses user-specified <code>levels</code>), then estimates shifts at the coarsest resolution and progressively refines them at higher resolutions. At each level, it applies local search around the propagated shift to improve accuracy.</li>
+                
+                <li><code>pyramid_align</code>: A wrapper function that calls <code>pyramid_shiftsearch</code> to compute the best displacement, then applies the shift with <code>np.roll</code> to align the input image to the reference. It returns both the aligned image and the final shift vector.</li>
+              </ul>
+            </p>
+
+        </div>
+
+
+
+      <h3 class="subhead">Results</h3>
+      <div class="grid-4">
+        <!-- 14 static figures -->
+        <!-- 1 -->
+        <figure>
+          <a href="media/church_aligned.jpg" class="lightbox"><img src="media/church_aligned.jpg" alt="Pyramid result 1"></a>
+          <figcaption><div>church.tif</div><div class="shifts"><div>G shift: (-11, 25)</div><div>R shift: (-5, 58)</div></div></figcaption>
+        </figure>
+        <!-- 2 -->
+        <figure>
+          <a href="media/emir_aligned.jpg" class="lightbox"><img src="media/emir_aligned.jpg" alt="Pyramid result 2"></a>
+          <figcaption><div>emir.tif</div><div class="shifts"><div>G shift: (24, 49)</div><div>R shift:(44, 104)</div></div></figcaption>
+        </figure>
+        <!-- 3 -->
+        <figure>
+          <a href="media/harvesters_aligned.jpg" class="lightbox"><img src="media/harvesters_aligned.jpg" alt="Pyramid result 3"></a>
+          <figcaption><div>harvesters.tif</div><div class="shifts"><div>G shift: (10, 59)</div><div>R shift: (7, 120)</div></div></figcaption>
+        </figure>
+        <!-- 4 -->
+        <figure>
+          <a href="media/icon_aligned.jpg" class="lightbox"><img src="media/icon_aligned.jpg" alt="Pyramid result 4"></a>
+          <figcaption><div>icon.tif</div><div class="shifts"><div>G shift: (16, 42)</div><div>R shift: (22, 89)</div></div></figcaption>
+        </figure>
+        <!-- 5 -->
+        <figure>
+          <a href="media/italil_aligned.jpg" class="lightbox"><img src="media/italil_aligned.jpg" alt="Pyramid result 5"></a>
+          <figcaption><div>italil.tif</div><div class="shifts"><div>G shift: (18, 38)</div><div>R shift: (34, 77)</div></div></figcaption>
+        </figure>
+        <!-- 6 -->
+        <figure>
+          <a href="media/lastochikino_aligned.jpg" class="lightbox"><img src="media/lastochikino_aligned.jpg" alt="Pyramid result 6"></a>
+          <figcaption><div>lastochikino.tif</div><div class="shifts"><div>G shift: (-2, -3)</div><div>R shift: (-6, 70)</div></div></figcaption>
+        </figure>
+        <!-- 7 -->
+        <figure>
+          <a href="media/lugano_aligned.jpg" class="lightbox"><img src="media/lugano_aligned.jpg" alt="Pyramid result 7"></a>
+          <figcaption><div>lugano.tif</div><div class="shifts"><div>G shift: (-11, 33)</div><div>R shift: (-28, 92)</div></div></figcaption>
+        </figure>
+        <!-- 8 -->
+        <figure>
+          <a href="media/melons_aligned.jpg" class="lightbox"><img src="media/melons_aligned.jpg" alt="Pyramid result 8"></a>
+          <figcaption><div>melons.tif</div><div class="shifts"><div>G shift:(4, 83)</div><div>R shift: (7, 174)</div></div></figcaption>
+        </figure>
+        <!-- 9 -->
+        <figure>
+          <a href="media/self_portrait_aligned.jpg" class="lightbox"><img src="media/self_portrait_aligned.jpg" alt="Pyramid result 9"></a>
+          <figcaption><div>self_portrait.tif</div><div class="shifts"><div>G shift: (29, 79)</div><div>R shift: (34, 175)</div></div></figcaption>
+        </figure>
+        <!-- 10 -->
+        <figure>
+          <a href="media/siren_aligned.jpg" class="lightbox"><img src="media/siren_aligned.jpg" alt="Pyramid result 10"></a>
+          <figcaption><div>siren.tif</div><div class="shifts"><div>G shift: (18, 38)</div><div>R shift: (34, 77)</div></div></figcaption>
+        </figure>
+        <!-- 11 -->
+        <figure>
+          <a href="media/three_generations_aligned.jpg" class="lightbox"><img src="media/three_generations_aligned.jpg" alt="Pyramid result 11"></a>
+          <figcaption><div>three_generations.tif</div><div class="shifts"><div>G shift: (13, 55)</div><div>R shift: (10, 112)</div></div></figcaption>
+        </figure>
+        <!-- 12 -->
+        <figure>
+          <a href="media/cathedral_aligned.jpg" class="lightbox"><img src="media/cathedral_aligned.jpg" alt="Pyramid result 12"></a>
+          <figcaption><div>cathedral.jpg</div><div class="shifts"><div>G shift: (2, 5)</div><div>R shift: (3, 12)</div></div></figcaption>
+        </figure>
+        <!-- 13 -->
+        <figure>
+          <a href="media/monastery_aligned.jpg" class="lightbox"><img src="media/monastery_aligned.jpg" alt="Pyramid result 13"></a>
+          <figcaption><div>monastery.jpg</div><div class="shifts"><div>G shift: (2, -3)</div><div>R shift: (2, 3)</div></div></figcaption>
+        </figure>
+        <!-- 14 -->
+        <figure>
+          <a href="media/tobolsk_aligned.jpg" class="lightbox"><img src="media/tobolsk_aligned.jpg" alt="Pyramid result 14"></a>
+          <figcaption><div>tobolsk.jpg</div><div class="shifts"><div>G shift: (2, 3)</div><div>R shift: (3, 6)</div></div></figcaption>
+        </figure>
+      </div>
+      <h3 class="subhead">LoC Extras</h3>
+      <div class="grid-3">
+        <figure>
+          <a href="media/Peonies_aligned.jpg" class="lightbox">
+            <img src="media/Peonies_aligned.jpg" alt=" result 1">
+          </a>
+          <figcaption>
+            <div>Peonies.tif</div>
+            <div class="shifts">
+              <div>G shift: (3, 51)</div>
+              <div>R shift: (-6, 104)</div>
+            </div>
+          </figcaption>
+        </figure>
+
+        <figure>
+          <a href="media/village_aligned.jpg" class="lightbox">
+            <img src="media/village_aligned.jpg" alt=" result 2">
+          </a>
+          <figcaption>
+            <div>village.tif</div>
+            <div class="shifts">
+              <div>G shift: (-6, 104)</div>
+              <div>R shift: (4, 98)</div>
+            </div>
+          </figcaption>
+        </figure>
+
+        <figure>
+          <a href="media/in_little_Russia_aligned.jpg" class="lightbox">
+            <img src="media/in_little_Russia_aligned.jpg" alt=" result 3">
+          </a>
+          <figcaption>
+            <div>in_little_Russia.tif </div>
+            <div class="shifts">
+              <div>G shift: (7, -23)</div>
+              <div>R shift: (10, -34)</div>
+            </div>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- =================== Part 3 =================== -->
+    <section id="part3" class="part">
+      <h2>Part 3 — Bells & Whistles</h2>
+      <article>
+        <div class="explain">
+          <h3>Better Features (Edges / Gradients) — Method</h3>
+          <p>
+            To improve robustness against illumination differences, we apply 
+            <strong>edge-based alignment</strong> instead of relying on raw intensity values. 
+            Edges highlight structural boundaries that remain stable even if brightness 
+            or contrast vary between channels.
+          </p>
+        
+          <ol>
+            <li>
+              <strong>Edge Extraction:</strong>  
+              We use the <code>skimage.filters.sobel</code> operator to compute edge maps 
+              for both the input channel and the reference channel. This emphasizes 
+              gradient transitions while suppressing uniform regions.
+            </li>
+        
+            <li>
+              <strong>Pyramid Alignment on Edges:</strong>  
+              The edge maps are aligned using our <code>pyramid_shiftsearch</code> method 
+              with NCC as the similarity measure. Since edges are less sensitive to 
+              absolute intensity, this step produces more reliable shift estimates.
+            </li>
+        
+            <li>
+              <strong>Apply Shifts to Originals:</strong>  
+              The estimated displacement from the edge maps is then applied to the 
+              original image channel (not the edge map) using <code>np.roll</code>. 
+              This ensures that the final aligned image preserves the original 
+              pixel values while benefiting from robust edge-based motion estimation.
+            </li>
+          </ol>
+        
+          <p>
+            In practice, this method proved especially effective for images with strong 
+            brightness variations across channels. For example, in the dataset, 
+            the <strong>church.tif</strong> and <strong>emir.tif</strong> images showed visibly 
+            improved alignment when using edge features compared to raw intensities.
+          </p>
+        </div>
+
+
+        <div class="grid-2">
+          <figure><a href="media/church_aligned.jpg" class="lightbox"><img src="media/church_aligned.jpg" alt="Before edge-based align"></a><figcaption><div>Before (church.tif)</div><div class="shifts"><div>G shift: (-11, 25)</div><div>R shift: (-5, 58)</div></div></figcaption></figure>
+          <figure><a href="media/church_aligned_edge.jpg" class="lightbox"><img src="media/church_aligned_edge.jpg" alt="After edge-based align"></a><figcaption><div>After (church.tif)</div><div class="shifts"><div>G shift: (-2, 25)</div><div>R shift: (-14, 58)</div></div></figcaption></figure>
+        </div>
+        <div class="grid-2">
+          <figure><a href="media/emir_aligned.jpg" class="lightbox"><img src="media/emir_aligned.jpg" alt="Before edge-based align"></a><figcaption><div>Before (emir.tif)</div><div class="shifts"><div>G shift: (24, 49)</div><div>R shift:(44, 104)</div></div></figcaption></figure>
+          <figure><a href="media/emir_aligned_edge.jpg" class="lightbox"><img src="media/emir_aligned_edge.jpg" alt="After edge-based align"></a><figcaption><div>After (emir.tif)</div><div class="shifts"><div>G shift: (23, 49)</div><div>R shift:(40, 107)</div></div></figcaption></figure>
+        </div>
+        
+        
+      </article>
+        
+    <article class="bw-crop">
+          <div class="explain">
+            <h3>Automatic Cropping — Method</h3>
+            <p>
+              To automatically remove borders, we developed a <strong>gradient-based cropping
+              algorithm enhanced with uniformity checks</strong>. The idea is to scan from
+              each side of the image until significant content is detected, while ignoring
+              flat, uniform regions that correspond to borders.
+            </p>
+        
+            <ol>
+              <li>
+                <strong>Gradient Computation:</strong>  
+                The image is first converted to grayscale, and horizontal/vertical gradients
+                are computed using the Sobel operator. The gradient magnitude highlights
+                edges and transitions between border and content.
+              </li>
+        
+              <li>
+                <strong>Four-Sided Scanning:</strong>  
+                For each direction (top, bottom, left, right), the algorithm scans inward
+                until the mean gradient exceeds a threshold (<code>gradient_threshold</code>,
+                default 0.03). This marks the start of meaningful content.
+              </li>
+        
+              <li>
+                <strong>Uniformity Check:</strong>  
+                To avoid mistakenly cutting into the actual image, we check whether the
+                scanned region is uniform (low standard deviation across pixels). If it is,
+                we continue scanning; otherwise, we record the boundary.
+              </li>
+        
+              <li>
+                <strong>Content Cropping:</strong>  
+                Once all four boundaries are found, the image is cropped accordingly.
+                If any step fails, a fallback (<code>auto_crop_robust</code>) simply
+                returns the original image to guarantee stability.
+              </li>
+            </ol>
+        
+            <p>
+              <strong>Main supporting functions:</strong>
+              <ul>
+                <li><code>is_uniform_region</code>: Checks whether a region has very low variance (like a flat white or colored border) and should be ignored during cropping.</li>
+                <li><code>find_content_start</code>: Combines gradient magnitude and uniformity detection to find where meaningful content begins along one direction.</li>
+                <li><code>auto_crop_gradient_enhanced</code>: The main function that applies gradient + uniformity checks to determine crop boundaries, then returns the cropped image.</li>
+                <li><code>auto_crop_robust</code>: A safe wrapper that runs the enhanced method but falls back to returning the original image if any error occurs.</li>
+              </ul>
+            </p>
+        
+            <p>
+              In practice, this method successfully removed <strong>most white borders</strong>
+              and even some <strong>colored borders</strong> around the images, resulting in
+              cleaner visual outputs for the dataset.
+            </p>
+          </div>
+
+
+      <div class="grid-groups-2" role="group" aria-label="Auto crop before/after groups">
+    
+        <!-- Group 1 -->
+        <div class="pair" aria-label="Group 1">
+          <figure>
+            <img src="media/harvesters_aligned.jpg" alt="Before auto crop (harvesters)">
+            <figcaption>Before</figcaption>
+          </figure>
+          <figure>
+            <img src="media/harvesters_aligned_cropped.jpg" alt="After auto crop (harvesters)">
+            <figcaption>After</figcaption>
+          </figure>
+        </div>
+    
+ 
+        <div class="pair" aria-label="Group 2">
+          <figure>
+            <img src="media/italil_aligned_edge.jpg" alt="Before auto crop (italil)">
+            <figcaption>Before</figcaption>
+          </figure>
+          <figure>
+            <img src="media/italil_aligned_edge_cropped.jpg" alt="After auto crop (italil)">
+            <figcaption>After</figcaption>
+          </figure>
+        </div>
+    
+
+        <div class="pair" aria-label="Group 3">
+          <figure>
+            <img src="media/lugano_aligned_edge.jpg" alt="Before auto crop (lugano)">
+            <figcaption>Before</figcaption>
+          </figure>
+          <figure>
+            <img src="media/lugano_aligned_edge_cropped.jpg" alt="After auto crop (lugano)">
+            <figcaption>After</figcaption>
+          </figure>
+        </div>
+ 
+        <div class="pair" aria-label="Group 4">
+          <figure>
+            <img src="media/three_generations_aligned_edge.jpg" alt="Before auto crop (three_generations)">
+            <figcaption>Before</figcaption>
+          </figure>
+          <figure>
+            <img src="media/three_generations_aligned_edge_cropped.jpg" alt="After auto crop (three_generations)">
+            <figcaption>After</figcaption>
+          </figure>
+        </div>
+    
+      </div>
+    </article>
+
+
+
+    <article class="bw-contrast">
+        <div class="explain">
+          <h3>Automatic Contrast — Method</h3>
+          <p>
+            We implemented both <strong>linear</strong> and <strong>nonlinear</strong> 
+            methods to automatically enhance image contrast. The goal is to rescale 
+            intensity values into a normalized range while optionally applying stronger 
+            nonlinear boosts.
+          </p>
+        
+          <ol>
+            <li>
+              <strong>Linear Rescaling:</strong>  
+              Pixel intensities are normalized into the range [0,1]. This can be done
+              either per-channel or across the entire image. Optional 
+              <code>robust</code> percentile clipping (e.g., 1%–99%) removes extreme 
+              outliers before rescaling. A <code>gamma</code> correction parameter is 
+              also available: values &gt;1 darken the image, while values &lt;1 brighten it.
+            </li>
+        
+            <li>
+              <strong>Nonlinear Enhancement (CLAHE):</strong>  
+              We applied <em>Contrast Limited Adaptive Histogram Equalization</em> (CLAHE), 
+              which enhances local contrast rather than just rescaling globally.  
+              The image is divided into small tiles, and histogram equalization is 
+              applied separately to each tile. To avoid over-amplifying noise, the 
+              <code>clip_limit</code> parameter controls how much the histogram can be 
+              “stretched” in each region. After local adjustment, the tiles are smoothly 
+              blended together to avoid visible block boundaries.
+            </li>
+        
+            <li>
+              <strong>Output:</strong>  
+              Both methods return images normalized to [0,1]. The linear approach is 
+              simple and globally consistent, while the CLAHE-based nonlinear method 
+              can reveal fine local details in shadows and highlights without introducing 
+              strong artifacts.
+            </li>
+          </ol>
+        
+          <p>
+            In our experiments, we compared the <strong>original</strong>, 
+            <strong>linear</strong>, and <strong>nonlinear (CLAHE)</strong> versions. 
+            The nonlinear method showed the most noticeable improvement, especially for 
+            images with large bright or dark regions: fine structures became more visible 
+            and the overall visual impression was more balanced.
+          </p>
+        </div>
+
+
+    
+
+      <div class="grid-3 contrast-header">
+        <div><strong>Original</strong></div>
+        <div><strong>Linear Contrast</strong></div>
+        <div><strong>Nonlinear Contrast</strong></div>
+      </div>
+    
+
+      <div class="grid-3">
+        <!-- Group 1 -->
+        <figure><img src="media/emir_aligned_edge.jpg" alt="Original 1"><figcaption></figcaption></figure>
+        <figure><img src="media/emir_aligned_edge_contrast_linear.jpg" alt="Linear 1"><figcaption></figcaption></figure>
+        <figure><img src="media/emir_aligned_edge_contrast_nonlinear.jpg" alt="Nonlinear 1"><figcaption></figcaption></figure>
+    
+        <!-- Group 2 -->
+        <figure><img src="media/icon_aligned_edge.jpg" alt="Original 2"><figcaption></figcaption></figure>
+        <figure><img src="media/icon_aligned_edge_contrast_linear.jpg" alt="Linear 2"><figcaption></figcaption></figure>
+        <figure><img src="media/icon_aligned_edge_contrast_nonlinear.jpg" alt="Nonlinear 2"><figcaption></figcaption></figure>
+    
+        <!-- Group 3 -->
+        <figure><img src="media/lastochikino_aligned_edge.jpg" alt="Original 3"><figcaption> </figcaption></figure>
+        <figure><img src="media/lastochikino_aligned_edge_contrast_linear.jpg" alt="Linear 3"><figcaption></figcaption></figure>
+        <figure><img src="media/lastochikino_aligned_edge_contrast_nonlinear.jpg" alt="Nonlinear 3"><figcaption></figcaption></figure>
+
+        <!-- Group 4 -->
+        <figure><img src="media/siren_aligned_edge.jpg" alt="Original 4"><figcaption></figcaption></figure>
+        <figure><img src="media/siren_aligned_edge_contrast_linear.jpg" alt="Linear 4"><figcaption></figcaption></figure>
+        <figure><img src="media/siren_aligned_edge_contrast_nonlinear.jpg" alt="Nonlinear 4"><figcaption></figcaption></figure>
+      </div>
+    </article>
+
+
+    <article class="bw-contrast">
+        <div class="explain">
+          <h3>Automatic White Balancing — Method</h3>
+          <p>
+            We implemented two common strategies for <strong>automatic white balance (AWB)</strong>,
+            both aiming to correct color casts caused by uneven illumination. The input
+            image is first normalized to floating-point values in the range [0,1].
+          </p>
+        
+          <ol>
+            <li>
+              <strong>Gray World Assumption:</strong>  
+              This method assumes that the average color of a well-balanced image should
+              be a neutral gray. We compute the mean values of the R, G, and B channels,
+              then scale each channel so that their averages become equal. This tends to
+              correct global color bias but can sometimes make the overall image look
+              slightly desaturated or “grayish.”
+            </li>
+        
+            <li>
+              <strong>Max RGB Method:</strong>  
+              This method assumes that the brightest pixel in each channel should represent
+              the illumination source (white). Each channel is scaled relative to its maximum
+              value so that the brightest red, green, and blue pixels all map to white.
+              This often produces more vivid colors but can be sensitive to outliers.
+            </li>
+        
+            <li>
+              <strong>Implementation Details:</strong>  
+              Both methods work by computing a scaling factor per channel, multiplying
+              the input image, and clipping the results back into [0,1]. The function
+              <code>auto_white_balance</code> returns a float32 image after correction.
+            </li>
+          </ol>
+        
+          <p>
+            In our results, we compared <strong>original</strong>, <strong>grayworld</strong>, 
+            and <strong>maxRGB</strong> outputs. We observed that the grayworld method 
+            effectively neutralized strong color casts but sometimes made the overall 
+            image appear flatter and more gray, while maxRGB preserved stronger contrasts 
+            and more saturated colors.
+          </p>
+        </div>
+
+        
+   
+          <div class="grid-3 contrast-header">
+            <div><strong>Original</strong></div>
+            <div><strong>Gray world</strong></div>
+            <div><strong>Max RGB</strong></div>
+          </div>
+        
+
+          <div class="grid-3">
+            <!-- Group 1 -->
+            <figure><img src="media/church_aligned_edge.jpg" alt="Original 1"><figcaption></figcaption></figure>
+            <figure><img src="media/church_aligned_edge_wb_grayworld.jpg" alt="Linear 1"><figcaption></figcaption></figure>
+            <figure><img src="media/church_aligned_edge_wb_maxrgb.jpg" alt="Nonlinear 1"><figcaption></figcaption></figure>
+        
+            <!-- Group 2 -->
+            <figure><img src="media/lugano_aligned_edge.jpg" alt="Original 2"><figcaption></figcaption></figure>
+            <figure><img src="media/lugano_aligned_edge_wb_grayworld.jpg" alt="Linear 2"><figcaption></figcaption></figure>
+            <figure><img src="media/lugano_aligned_edge_wb_maxrgb.jpg" alt="Nonlinear 2"><figcaption></figcaption></figure>
+        
+            <!-- Group 3 -->
+            <figure><img src="media/melons_aligned_edge.jpg" alt="Original 3"><figcaption> </figcaption></figure>
+            <figure><img src="media/melons_aligned_edge_wb_grayworld.jpg" alt="Linear 3"><figcaption></figcaption></figure>
+            <figure><img src="media/melons_aligned_edge_wb_maxrgb.jpg" alt="Nonlinear 3"><figcaption></figcaption></figure>
+    
+            <!-- Group 4 -->
+            <figure><img src="media/self_portrait_aligned_edge.jpg" alt="Original 4"><figcaption></figcaption></figure>
+            <figure><img src="media/self_portrait_aligned_edge_wb_grayworld.jpg" alt="Linear 4"><figcaption></figcaption></figure>
+            <figure><img src="media/self_portrait_aligned_edge_wb_maxrgb.jpg" alt="Nonlinear 4"><figcaption></figcaption></figure>
+          </div>
+        </article>
+
+      <article>
+        <div class="explain">
+          <h3>Better Color Mapping — Method</h3>
+          <p>
+            In the original Prokudin-Gorskii photographs, the red, green, and blue
+            glass filters used during capture do not perfectly match the modern RGB
+            color channels. This mismatch often causes the reconstructed images to
+            look unnatural, with biased tints or muted tones. To address this, we
+            apply a <strong>color correction matrix (CCM)</strong>.
+          </p>
+        
+          <ol>
+            <li>
+              <strong>Linear Transformation:</strong>  
+              Each output channel (R′, G′, B′) is computed as a weighted combination
+              of the input channels (R, G, B). This is expressed as a 3×3 matrix
+              multiplication:
+              <pre>[R′, G′, B′]^T = M × [R, G, B]^T</pre>
+              where <code>M</code> is the chosen CCM.
+            </li>
+        
+            <li>
+              <strong>Designing the Matrix:</strong>  
+              For the <em>Sunny Preset</em> we used in our results, the matrix was:
+              <pre>
+        M = [[ 1.25, -0.05, -0.05],
+             [-0.05,  1.20, -0.05],
+             [-0.05, -0.05,  1.10]]
+              </pre>
+              - The diagonal entries (1.25, 1.20, 1.10) boost red, green, and blue  
+              - The small negative off-diagonal entries (-0.05) suppress channel bleeding  
+              - Together this makes flowers appear brighter, leaves greener, and the scene overall more vivid
+            </li>
+        
+            <li>
+              <strong>Examples of Mappings:</strong>  
+              - <em>Balanced Preset:</em> Keeps all channels close to identity,
+                producing natural but slightly muted colors.  
+              - <em>Warm Preset:</em> Boosts red and green, reduces blue,
+                giving a warmer look suitable for portraits or indoor scenes.  
+              - <em>Sunny Preset (our example):</em> Increases red and green,
+                slightly boosts blue, producing vibrant outdoor colors for flowers
+                and foliage.
+            </li>
+        
+            <li>
+              <strong>Application:</strong>  
+              After transformation, the values are clipped to [0,1] to prevent
+              overflow. The method can be easily tuned by adjusting the matrix
+              to different types of images or desired styles.
+            </li>
+          </ol>
+        
+          <p>
+            In summary, color mapping provides a flexible way to reinterpret the
+            early color records into modern RGB. Different matrices emphasize
+            different moods: natural, warm, or sunny. The “sunny” example shown
+            in our results makes flower and leaf images brighter and more vibrant.
+          </p>
+        </div>
+        
+
+
+        <div class="grid-2">
+          <figure><a href="media/siren_aligned_edge.jpg" class="lightbox"><img src="media/siren_aligned_edge.jpg" alt="Before color mapping"></a><figcaption>Before</figcaption></figure>
+          <figure><a href="media/siren_aligned_edge_cm.jpg" class="lightbox"><img src="media/siren_aligned_edge_cm.jpg" alt="After color mapping"></a><figcaption>After</figcaption></figure>
+        </div>
+      </article>
+
+      
+    </section>
+
+    <p class="footer">This page is responsive and print-friendly.</p>
+  </div>
+
+  <!-- Lightbox modal -->
+  <div id="lb" aria-hidden="true" role="dialog">
+    <img src="" alt="expanded image">
+  </div>
+
+  <script>
+    // Simple lightbox
+    const lb = document.getElementById('lb');
+    const lbImg = lb.querySelector('img');
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest('a.lightbox');
+      if (a) {
+        e.preventDefault();
+        lbImg.src = a.href;
+        lb.classList.add('visible');
+        lb.setAttribute('aria-hidden', 'false');
+      } else if (e.target === lb || e.target === lbImg) {
+        lb.classList.remove('visible');
+        lb.setAttribute('aria-hidden', 'true');
+        lbImg.src = '';
+      }
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        lb.classList.remove('visible');
+        lb.setAttribute('aria-hidden', 'true');
+        lbImg.src = '';
+      }
+    });
+  </script>
+</body>
+</html>
