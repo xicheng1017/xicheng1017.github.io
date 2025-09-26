@@ -1,0 +1,662 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title>CS280A Project 2 — Fun with Filters and Frequencies!</title>
+
+  <link rel="stylesheet" href="../shared.css">
+  <link rel="stylesheet" href="./project2.css">
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <h1>CS280A Project 2 — Fun with Filters and Frequencies!</h1>
+      <div class="meta">Name: <strong>Xi Cheng</strong> · Date: <strong>2025-09-24</strong></div>
+    </header>
+
+    <!-- TOC -->
+    <nav class="toc">
+      <h2>Table of Contents</h2>
+      <ul>
+        <li><a href="#part1">Part 1: Fun with Filters</a>
+          <ul>
+            <li><a href="#p11">1.1 Convolutions from Scratch!</a></li>
+            <li><a href="#p12">1.2 Finite Difference Operator</a></li>
+            <li><a href="#p13">1.3 Derivative of Gaussian (DoG) Filter</a>
+              <ul>
+                <li><a href="#p13b">1.3 <strong>Bells & Whistles</strong></a></li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+        <li><a href="#part2">Part 2: Fun with Frequencies!</a>
+          <ul>
+            <li><a href="#p21">2.1 Image "Sharpening"</a></li>
+            <li><a href="#p22">2.2 Hybrid Images</a>
+              <ul>
+                <li><a href="#p22b">2.2 <strong>Bells & Whistles</strong></a></li>
+              </ul>
+            </li>
+            <li><a href="#p23">2.3 Gaussian and Laplacian Stacks</a></li>
+            <li><a href="#p24">2.4 Multiresolution Blending (a.k.a. the oraple!)</a>
+              <ul>
+                <li><a href="#p24b">2.4 <strong>Bells & Whistles</strong></a></li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- Part 1 -->
+    <section class="part" id="part1">
+      <h2>Part 1: Fun with Filters</h2>
+      <p class="lead">This section covers fundamental filtering operations and extensions.</p>
+
+      <div class="subhead" id="p11">1.1 Convolutions from Scratch!</div>
+      <p>We implemented 2D convolution from scratch with two approaches: one using <strong>four nested loops</strong>, and another using <strong>two loops</strong> with NumPy slicing. Below are the code snippets and results for comparison.</p>
+
+      <!-- ===== Code comparison ===== -->
+      <h4>Four-loop Implementation</h4>
+      <pre><code class="language-python">def conv2d_four_loops(image, kernel):
+    H, W = image.shape
+    kH, kW = kernel.shape
+    kernel_flipped = np.flipud(np.fliplr(kernel))
+    pad_h, pad_w = kH // 2, kW // 2
+    padded = np.pad(image, ((pad_h, pad_h), (pad_w, pad_w)), mode='constant')
+    out = np.zeros_like(image, dtype=float)
+    for i in range(H):
+        for j in range(W):
+            val = 0.0
+            for m in range(kH):
+                for n in range(kW):
+                    val += padded[i+m, j+n] * kernel_flipped[m, n]
+            out[i, j] = val
+    return out</code></pre>
+
+      <h4>Two-loop Implementation</h4>
+      <pre><code class="language-python">def conv2d_two_loops(image, kernel):
+    H, W = image.shape
+    kH, kW = kernel.shape
+    kernel_flipped = np.flipud(np.fliplr(kernel))
+    pad_h, pad_w = kH // 2, kW // 2
+    padded = np.pad(image, ((pad_h, pad_h), (pad_w, pad_w)), mode='constant')
+    out = np.zeros_like(image, dtype=float)
+    for i in range(H):
+        for j in range(W):
+            region = padded[i:i+kH, j:j+kW]
+            out[i, j] = np.sum(region * kernel_flipped)
+    return out</code></pre>
+
+      <p><strong>Difference:</strong> The four-loop version is extremely slow because all operations are done in Python.  
+      The two-loop version leverages NumPy slicing, making it much faster while producing identical results.</p>
+      <p> The figure shows the convolution results of the selfie: the smoothed image from a 9×9 box filter, and the horizontal and vertical edge maps extracted using the Dx and Dy filters.</p>
+
+      <!-- ===== Results figure ===== -->
+      <figure>
+        <img src="media/part1_1_conv.png" alt="Convolution results comparison" style="max-width:1000px;">
+        <figcaption> Convolution Results</figcaption>
+      </figure>
+
+      <!-- ===== Runtime table ===== -->
+        <h4>Runtime Comparison</h4>
+        <table>
+          <tr>
+            <th>Method</th>
+            <th>Runtime</th>
+            <th>Notes</th>
+            <th>Implementation Details</th>
+          </tr>
+          <tr>
+            <td>Four-loop</td>
+            <td>3 min 27 s</td>
+            <td>Pure Python, very slow</td>
+            <td>Naive convolution with 4 nested loops; every pixel × kernel multiplication is computed explicitly in Python.</td>
+          </tr>
+          <tr>
+            <td>Two-loop</td>
+            <td>1 min 56 s</td>
+            <td>Uses NumPy slicing</td>
+            <td>Still uses loops over image pixels, but kernel multiplication is delegated to NumPy (C-optimized array operations).</td>
+          </tr>
+          <tr>
+            <td>SciPy</td>
+            <td>1.3 s</td>
+            <td>Optimized C/FFT implementation</td>
+            <td>Implemented in C, internally leverages FFT-based convolution or optimized low-level routines for speed.</td>
+          </tr>
+        </table>
+
+
+      <!-- ===== Boundary handling ===== -->
+      <h4>Boundary Handling</h4>
+      <p>We use <strong>zero-padding</strong>, meaning pixels outside the image are treated as 0.
+         This ensures output size matches input size, but introduces dark edges near borders.</p>
+
+        <div class="subhead" id="p12">1.2 Finite Difference Operator</div>
+        <p>
+        To detect edges, we first applied the finite difference operators <code>Dx = [[1, 0, -1]]</code> and <code>Dy = [[1], [0], [-1]]</code> 
+        to compute horizontal and vertical derivatives of the image. 
+
+        The gradient magnitude was then computed as:
+        </p>
+        
+        <p style="text-align:center; font-family: ui-monospace, monospace;">
+          G = sqrt(I<sub>x</sub><sup>2</sup> + I<sub>y</sub><sup>2</sup>)
+        </p>
+        Finally, by thresholding G, we obtained a binary edge map that highlights strong edges while suppressing weaker ones.
+        </p>
+        
+        <figure>
+          <img src="media/part1_2_threshold.png" alt="Edge maps with different thresholds" style="max-width:1000px;">
+        </figure>
+        <p>
+        We experimented with different thresholds on the gradient magnitude image. 
+        A very low threshold (e.g., 10) retains almost all weak edges but introduces significant noise in flat regions. 
+        A very high threshold (e.g., 25) suppresses most of the noise but also removes many real edges such as object boundaries with low contrast. 
+        We found that a threshold of around <strong>20</strong> provides a good trade-off: it suppresses background noise while preserving the important structural edges of the cameraman image.
+        </p>
+        
+        <figure>
+          <img src="media/part1_2_diff.png" alt="Original, derivatives, gradient magnitude, and edge map" style="max-width:1000px;">
+        </figure>
+        <p>
+        With the chosen threshold = 20, we illustrate the complete process: 
+        the original image, the partial derivatives in x and y, the gradient magnitude image, 
+        and the final binarized edge map. 
+        This confirms that combining finite difference operators with gradient magnitude thresholding is an effective approach for edge detection: 
+        most noise is removed while salient object boundaries are preserved.
+        </p>
+
+        
+        <div class="subhead" id="p13">1.3 Derivative of Gaussian (DoG) Filter</div>
+        <p>
+        Applying finite difference operators <code>Dx</code> and <code>Dy</code> directly to the original image often produces noisy edge maps, 
+        because high-frequency noise is amplified along with true edges. 
+        To address this, we first smooth the image with a Gaussian filter and then compute the derivatives, 
+        which suppresses noise and yields more continuous and visually cleaner edges.
+        </p>
+        
+        <figure>
+          <img src="media/part1_3_Dog1.png" alt="Gaussian smoothing then derivative" style="max-width:1000px;">
+        </figure>
+        <p>
+        The figure above shows the pipeline: original image, blurred image using a Gaussian filter, 
+        the gradient magnitude after blurring, and the final edge map after thresholding. 
+        The Gaussian smoothing step significantly reduces noise in flat regions, leading to cleaner edge detection results.
+        </p>
+        
+        <figure>
+          <img src="media/part1_3_Dog2.png" alt="DoG filters and results" style="max-width:1000px;">
+        </figure>
+        <p>
+        An equivalent and more efficient approach is to use <strong>Derivative of Gaussian (DoG)</strong> filters, 
+        where the Gaussian kernel is first combined with the derivative operator to form <code>DoGx</code> and <code>DoGy</code>. 
+        Convolving the image with these filters directly produces gradients similar to the two-step method. 
+        This achieves nearly identical edge maps while reducing computation, 
+        since smoothing and differentiation are performed in a single convolution.
+        </p>
+
+        <div class="subhead sub" id="p13b">1.3 <strong>Bells &amp; Whistles</strong></div>
+        <p>
+        In addition to detecting edges, we can also compute the <strong>gradient orientation</strong> at each pixel. 
+        Given the partial derivatives <code>Ix</code> and <code>Iy</code> obtained from finite difference operators, 
+        the gradient magnitude and orientation are defined as:
+        </p>
+        
+        <p style="text-align:center; font-family: ui-monospace, monospace;">
+          G = sqrt(I<sub>x</sub><sup>2</sup> + I<sub>y</sub><sup>2</sup>), &nbsp;
+          θ = arctan(I<sub>y</sub> / I<sub>x</sub>)
+        </p>
+        
+        <p>
+        Here, G captures the strength of edges, while θ encodes their direction. 
+        To visualize orientations, we normalize θ ∈ [−π, π] into [0,1] and map it to a <strong>cyclic colormap</strong>. 
+        Cyclic colormaps (such as <code>hsv</code>) are ideal because orientations wrap around continuously, 
+        so −π and +π map to the same color.
+        </p>
+        
+        <figure style="text-align:center;">
+          <img src="media/part1_3_bw.png" alt="Gradient orientation visualization with HSV colormap" style="max-width:500px; display:inline-block;">
+        </figure>
+        
+        <p>
+        The figure above shows the gradient orientations visualized with the HSV colormap. 
+        Colors correspond to different edge directions: horizontal, vertical, and diagonal edges appear in distinct hues, 
+        providing an intuitive representation of edge orientation across the image.
+        </p>
+
+
+    </section>
+
+    <!-- Part 2 -->
+    <section class="part" id="part2">
+      <h2>Part 2: Fun with Frequencies!</h2>
+      <p class="lead">This section explores frequency-domain techniques for image processing.</p>
+
+        <div class="subhead" id="p21">2.1 Image "Sharpening"</div>
+        <p>
+        We implement the <strong>unsharp mask filter</strong>, a classic technique for image sharpening. 
+        The key idea is that a Gaussian blur acts as a <em>low-pass filter</em>, removing high-frequency details. 
+        Subtracting the blurred image from the original yields the <em>high-frequency component</em>:
+        </p>
+        
+        <p class="center">
+          H = I - (G * I)
+        </p>
+        
+        <p>
+        where I is the original image and G is a Gaussian kernel.  
+        The sharpened image is then obtained by adding some scaled high frequencies back to the original:
+        </p>
+        
+        <p class="center">
+          I<sub>sharp</sub> = I + k · H = (1 + k)I - k(G * I)
+        </p>
+        
+        <p>
+        This is equivalent to a single convolution with the <strong>unsharp mask filter</strong>.  
+        The parameter <code>k</code> controls the strength of sharpening: small values produce subtle enhancement, 
+        while large values exaggerate edges and details.
+        </p>
+        
+        <!-- ===== Example 1: Taj Mahal ===== -->
+        <div class="subhead sub">Example: Taj Mahal</div>
+        
+        <figure class="center">
+          <img src="media/part2_1_taj1.png" alt="Taj Mahal sharpening results" style="max-width:900px;">
+          <figcaption>Taj Mahal example: original, blurred, high-frequency, and sharpened versions for different k values.</figcaption>
+        </figure>
+        
+        <p>
+        In the Taj Mahal image, we see that the blurred version removes fine textures, while the high-frequency image captures edges and details. 
+        Adding back scaled high frequencies produces a visibly sharper result. Increasing <code>k</code> strengthens the effect:  
+        - With <code>k=0.5</code>, sharpening is mild and natural.  
+        - With <code>k=1.5</code>, the edges are crisper and more prominent.  
+        - With <code>k=2.5</code>, the effect becomes aggressive, which may enhance contrast but also exaggerates noise.
+        </p>
+        
+        <figure class="center">
+          <img src="media/part2_1_taj2.png" alt="Taj Mahal blur then sharpen test" style="max-width:900px;">
+          <figcaption>Taj Mahal: original sharp image, sharpened once, blurred, then sharpened again.</figcaption>
+        </figure>
+        
+        <p>
+        When we take a sharp image, blur it, and then attempt to sharpen again, we observe that lost details cannot be fully recovered.  
+        Sharpening enhances contrast at edges, but it cannot recreate the fine structures that were removed by the Gaussian blur.  
+        This highlights that <strong>sharpening does not truly restore information</strong>—it only boosts existing high-frequency components.
+        </p>
+        
+        <!-- ===== Example 2: Campanile ===== -->
+        <div class="subhead sub">Example: Campanile</div>
+        
+        <figure class="center">
+          <img src="media/part2_1_cam1.png" alt="Campanile sharpening results" style="max-width:900px;">
+          <figcaption>Campanile example: original, blurred, high-frequency, and sharpened versions for different k values.</figcaption>
+        </figure>
+        
+        <p>
+        We repeat the experiment with another image (Campanile). The same trend is observed: 
+        the blurred image loses detail, the high-frequency component highlights edges, 
+        and different values of <code>k</code> control the sharpness intensity. 
+        Moderate sharpening improves visual clarity, while excessive sharpening can introduce halos and amplify noise.
+        </p>
+        
+        <figure class="center">
+          <img src="media/part2_1_cam2.png" alt="Campanile blur then sharpen test" style="max-width:900px;">
+          <figcaption>Campanile:original sharp image, sharpened once, blurred, then sharpened again.</figcaption>
+        </figure>
+        
+        <p>
+        Overall, unsharp masking works by leveraging the high-frequency information suppressed by Gaussian blurring.  
+        It is effective at enhancing perceptual sharpness, but it cannot recover fine details once they are lost.  
+        Therefore, sharpening is best applied to already sharp or moderately blurred images, rather than as a restoration tool.
+        </p>
+
+
+
+        <div class="subhead" id="p22">2.2 Hybrid Images</div>
+        <p>
+        Hybrid images are created by combining the <strong>low-frequency</strong> component of one image 
+        with the <strong>high-frequency</strong> component of another. 
+        Following Oliva et al., we use a Gaussian filter to obtain the low-pass image, 
+        and subtract the Gaussian-blurred version from the original to obtain the high-pass image.  
+        The final hybrid is formed by adding them together:
+        </p>
+        
+        <p class="center">
+          Hybrid = Low-pass(im<sub>2</sub>) + [im<sub>1</sub> − Low-pass(im<sub>1</sub>)]
+        </p>
+        
+        <p>
+        The cutoff frequencies for the Gaussian filters are chosen experimentally to balance 
+        the contributions of the two images. At close viewing distance, the high frequencies dominate, 
+        while at far viewing distance the low frequencies dominate—this perceptual switching is the essence of hybrid images.
+        </p>
+        
+        <!-- Example 1: Derek + Nutmeg -->
+        <div class="subhead sub">Example 1: Derek + Nutmeg</div>
+        <p>
+        In this example, we create a hybrid image by combining Derek’s face with his former cat Nutmeg.  
+        The process consists of several steps, illustrated below.
+        </p>
+        
+        <!-- Step 1: Alignment -->
+        <p><strong>Step 1. Alignment and Cropping:</strong>  
+        The two input images are first aligned so that their facial features roughly overlap.  
+        Alignment is important because frequency-based fusion only works well if corresponding structures are spatially registered.  
+        After alignment, we crop both images to the same region of interest.</p>
+        
+        <figure class="center">
+          <img src="media/part2_2_catman1.png" alt="Alignment and Cropping Derek+Nutmeg" style="max-width:600px;">
+          <figcaption>Aligned and cropped versions of Derek and Nutmeg images.</figcaption>
+        </figure>
+        
+        <!-- Step 2: Filtering -->
+        <p><strong>Step 2. Low-pass and High-pass Filtering:</strong>  
+        We apply a Gaussian blur to Derek’s image to extract its <em>low-frequency</em> component, 
+        which preserves overall shape and shading but removes fine details.  
+        For Nutmeg’s image, we subtract the Gaussian-blurred version from the original to obtain the <em>high-frequency</em> component, 
+        which emphasizes sharp edges such as whiskers and fur.</p>
+        
+        <!-- Step 3: Cutoff frequency -->
+        <p><strong>Step 3. Choosing the Cutoff Frequency:</strong>  
+        The Gaussian filter’s standard deviation (σ) controls the cutoff frequency.  
+        A large σ produces a blurrier low-pass and weaker high-pass, while a small σ keeps more detail but also more noise.  
+        Through experimentation, we set σ = 10, which produced a good balance between Derek’s smooth low-frequency structure and Nutmeg’s sharp high-frequency features.</p>
+        
+        <!-- Step 4: Frequency analysis -->
+        <p><strong>Step 4. Frequency Analysis (Fourier Transform):</strong>  
+        To confirm the filtering process, we compute the log magnitude of the Fourier transform.  
+        In the spectra, bright regions near the center correspond to low frequencies, while bright regions farther away indicate high frequencies.  
+        This verifies that Derek contributes low-frequency content and Nutmeg contributes high-frequency detail.</p>
+        
+        <figure class="center">
+          <img src="media/part2_2_catman_fft.png" alt="Fourier spectra Derek+Nutmeg" style="max-width:800px;">
+          <figcaption>Fourier transforms: original images (left), low-pass Derek, and high-pass Nutmeg.</figcaption>
+        </figure>
+        
+        <!-- Step 5: Hybrid construction -->
+        <p><strong>Step 5. Final Hybrid Construction:</strong>  
+        The hybrid is formed by adding the low-pass Derek image and the high-pass Nutmeg image.  
+        When viewed up close, Nutmeg’s sharp whiskers and fur dominate;  
+        when viewed from a distance, Derek’s smoother facial features become perceptually salient.</p>
+        
+        <figure class="center">
+          <img src="media/part2_2_catman_hybrid.png" alt="Hybrid Derek+Nutmeg" style="max-width:800px;">
+          <figcaption>Final hybrid result: Nutmeg dominates at close viewing distances, Derek at far distances.</figcaption>
+        </figure>
+
+        
+        <!-- Example 2: Dog + Cat -->
+        <div class="subhead sub">Example 2: Dog + Cat</div>
+        
+        <figure class="center">
+          <div>
+            <img src="media/cat.jpg" alt="Cat image" style="max-width:300px; display:inline-block; margin:0 10px;">
+            <img src="media/dog.jpg" alt="Dog image" style="max-width:300px; display:inline-block; margin:0 10px;">
+          </div>
+          <figcaption>Original images: Cat (left) and Dog (right).</figcaption>
+        </figure>
+        
+        <figure class="center">
+          <img src="media/part2_2_dogcat_hybrid.png" alt="Hybrid Dog+Cat" style="max-width:800px;">
+          <figcaption>Hybrid result combining Cat (low-pass) and Dog (high-pass).</figcaption>
+        </figure>
+        
+        <p>
+        In this case, the dog contributes the low-frequency base while the cat contributes the high-frequency details.  
+        From a distance, the dog dominates; up close, the hybrid looks like a cat
+        </p>
+        
+        <!-- Example 3: Mona Lisa + Cat -->
+        <div class="subhead sub">Example 3: Mona Lisa + Cat</div>
+        
+        <figure class="center">
+          <div>
+            <img src="media/catppl.jpg" alt="Cat image" style="max-width:300px; display:inline-block; margin:0 10px;">
+            <img src="media/monalisa.jpg" alt="Mona Lisa image" style="max-width:300px; display:inline-block; margin:0 10px;">
+          </div>
+          <figcaption>Original images: Cat (left) and Mona Lisa (right).</figcaption>
+        </figure>
+        
+        <figure class="center">
+          <img src="media/part2_2_lisacat_hybrid.png" alt="Hybrid Mona Lisa+Cat" style="max-width:800px;">
+          <figcaption>Hybrid result combining Mona Lisa (low-pass) and Cat (high-pass).</figcaption>
+        </figure>
+        
+        <p>
+        Here, Mona Lisa provides the smooth low-frequency structure, 
+        while the cat supplies high-frequency textures.  
+        The result is an amusing hybrid where Mona Lisa’s iconic silhouette is visible from afar, 
+        but the cat’s facial details emerge up close.
+        </p>
+
+        
+        <div class="subhead sub" id="p22b">2.2 <strong>Bells &amp; Whistles</strong></div>
+        <p>
+        As an extension, we experimented with adding <strong>color</strong> to hybrid images.  
+        In principle, color can be retained either in the low-frequency component, the high-frequency component, or both.  
+        To test this, we implemented a flexible <code>hybrid_image_enhanced</code> function that constructs hybrids under different modes:
+        </p>
+        
+        <ul>
+          <li><strong>Low:</strong> Low-frequency image keeps color; high-frequency image is converted to grayscale.</li>
+          <li><strong>High:</strong> High-frequency image keeps color; low-frequency image is grayscale.</li>
+          <li><strong>Both:</strong> Both low- and high-frequency components keep color.</li>
+        </ul>
+        
+        <p>
+        For each of our three hybrid examples, we generated three colored versions (low, high, both).  
+        Below are the results.
+        </p>
+        
+        <!-- Color experiments Example 1 -->
+        <figure class="center">
+          <img src="media/part2_2_bw1.png" alt="Color hybrid Derek+Nutmeg" style="max-width:900px;">
+          <figcaption>Derek + Nutmeg hybrid with different color strategies.</figcaption>
+        </figure>
+        
+        <!-- Color experiments Example 2 -->
+        <figure class="center">
+          <img src="media/part2_2_bw2.png" alt="Color hybrid Dog+Cat" style="max-width:900px;">
+          <figcaption>Dog + Cat hybrid with different color strategies.</figcaption>
+        </figure>
+        
+        <!-- Color experiments Example 3 -->
+        <figure class="center">
+          <img src="media/part2_2_bw3.png" alt="Color hybrid Mona Lisa+Cat" style="max-width:900px;">
+          <figcaption>Mona Lisa + Cat hybrid with different color strategies.</figcaption>
+        </figure>
+        
+        <p>
+        From these experiments, we found that <strong>retaining color only in the high-frequency component</strong> produces the most convincing hybrids.  
+        The reasons are:
+        </p>
+        <ul>
+          <li>When the <em>low-frequency</em> component keeps color, the strong chromatic information tends to dominate perception at all viewing distances, 
+              which diminishes the hybrid effect.</li>
+          <li>When <em>both</em> components keep color, the result often looks confusing or visually inconsistent, 
+              as colors from different images clash in overlapping regions.</li>
+          <li>By contrast, when only the <em>high-frequency</em> component has color, the hybrid remains perceptually stable: 
+              at close range the colored edges/textures pop out clearly, while at far range the grayscale low-frequency base 
+              ensures that the hybrid does not look overly saturated or inconsistent.</li>
+        </ul>
+        
+        <p>
+        In summary, color can enhance hybrid images, but it is most effective when applied to the high-frequency component only.  
+        This way, the fine details receive a perceptual boost without disrupting the global structure provided by the low frequencies.
+        </p>
+
+        <div class="subhead" id="p23">2.3 Gaussian and Laplacian Stacks</div>
+        <p>
+        We first implemented the <strong>Gaussian stack</strong> and <strong>Laplacian stack</strong>.  
+        The Gaussian stack is created by repeatedly applying Gaussian smoothing to the same image without downsampling, 
+        so all levels have the same resolution.  
+        The Laplacian stack is then constructed by taking the difference between successive Gaussian levels:
+        </p>
+        
+        <p class="center">
+          L<sub>i</sub> = G<sub>i</sub> − G<sub>i+1</sub>, &nbsp;&nbsp; for i = 0, …, N−2
+        </p>
+        <p class="center">
+          L<sub>N−1</sub> = G<sub>N−1</sub>
+        </p>
+        
+        <p>
+        Here, <code>G<sub>i</sub></code> is the i-th Gaussian level, obtained by convolving the image with a Gaussian kernel 
+        (repeatedly applying <code>gaussian_filter</code>).  
+        The Laplacian stack thus captures <em>band-pass frequency information</em> at each level, 
+        while the final Gaussian level stores the lowest frequency (smoothest) component.  
+        We wrote two helper functions:  
+        </p>
+        <ul>
+          <li><code>gaussian_stack(img, levels, sigma)</code>: builds the Gaussian stack by repeated smoothing.</li>
+          <li><code>laplacian_stack(img, levels, sigma)</code>: computes differences between Gaussian levels to form the Laplacian stack.</li>
+        </ul>
+        <p>
+        These stacks form the foundation for multi-resolution blending.
+        </p>
+        
+        <hr>
+        
+        <div class="subhead" id="p24">2.4 Multiresolution Blending (a.k.a. the Oraple)</div>
+        
+        <h4>Example 1: Apple + Orange → Oraple</h4>
+        <p>
+        To reproduce the classic <em>Oraple</em> example from Szeliski, we constructed Laplacian stacks for the apple and orange images, 
+        and a Gaussian stack for the blending mask.  
+        The mask in this case was a <strong>vertical step function</strong> of the same size as the input images:  
+        pixels on the <em>left half</em> were set to 1 (favoring the apple), 
+        and pixels on the <em>right half</em> were set to 0 (favoring the orange).  
+        To avoid a harsh boundary, we defined a transition window around the vertical seam. 
+        In practice, we used:
+        </p>
+        
+        <p class="center">
+          <code>mask = make_blend_mask(h, w, w//2 - 40, w//2 + 40, vertical=True)</code>
+        </p>
+        
+        <p>
+        Here, <code>w//2 - 40</code> and <code>w//2 + 40</code> specify an 80-pixel-wide transition band centered at the middle of the image.  
+        Within this band, the mask smoothly decreases from 1 to 0, creating a gradual shift from apple to orange.  
+        The mask was then <strong>Gaussian-smoothed</strong> at multiple scales to ensure that, in every level of the Laplacian stack, 
+        the seam appears soft and natural instead of a hard edge.
+        </p>
+        
+        <p>
+        At each level, we combined the Laplacian stacks of apple and orange using the corresponding Gaussian mask:
+        </p>
+        
+        <p class="center">
+          L<sub>blend,i</sub> = L<sub>apple,i</sub> · G<sub>mask,i</sub> + L<sub>orange,i</sub> · (1 − G<sub>mask,i</sub>)
+        </p>
+        
+        <p>
+        Finally, we collapsed the blended Laplacian stack back into a full-resolution image by summing over all levels.  
+        This reconstruction is handled by <code>blend_with_mask</code>, which takes two images and a mask, builds their stacks, 
+        combines them level by level, and outputs the final blend.
+        </p>
+        
+        <figure class="center">
+          <img src="media/part2_3_oraple.png" alt="Oraple Laplacian blending process" style="max-width:900px;">
+          <figcaption>Apple + Orange blending process using Gaussian and Laplacian stacks.  
+          The Gaussian-smoothed mask ensures a seamless transition across the vertical seam.</figcaption>
+        </figure>
+        
+        <p>
+        As seen above, the Gaussian mask smooths the transition across the seam, avoiding a hard boundary and producing a natural-looking Oraple.
+        </p>
+        
+        <hr>
+        
+        <h4>Example 2: Face + Hand with Irregular Mask</h4>
+        <p>
+        Next, we experimented with an irregular mask.  
+        Instead of a simple vertical seam, the mask was drawn manually as a binary region indicating where the face should remain (white = keep face, black = replace with hand).  
+        This binary mask was then smoothed with a Gaussian filter (<code>gaussian_filter</code>) so that its boundary transitioned smoothly.  
+        This ensures that the blending does not produce sharp edges or visible seams.
+        </p>
+        
+        <figure class="center">
+          <img src="media/part2_3_eye.png" alt="Face + Hand blending with irregular mask" style="max-width:900px;">
+          <figcaption>Blending with an irregular mask (face + hand). The smoothed mask allows for arbitrary shapes and ensures seamless transitions.</figcaption>
+        </figure>
+        
+        <hr>
+        
+        <h4>Example 3: Another Face + Hand with Different Mask</h4>
+        <p>
+        We repeated the experiment with another face-hand pair and a different irregular mask.  
+        This example demonstrates the flexibility of Laplacian stack blending: 
+        as long as a suitable mask is provided, two images can be merged seamlessly even with complex boundaries.  
+        Again, the role of the Gaussian-smoothed mask is crucial: without smoothing, the boundary would be visibly harsh, 
+        but with smoothing, the result looks natural and continuous.
+        </p>
+        
+        <figure class="center">
+          <img src="media/part2_3_mouth.png" alt="Another irregular blending example" style="max-width:900px;">
+          <figcaption>Blending with a second irregular mask (face + hand). The result shows a smooth composite image with no hard edges.</figcaption>
+        </figure>
+        
+        <hr>
+        
+        <p>
+        In summary, Gaussian and Laplacian stacks provide a frequency-based decomposition of images.  
+        When combined with Gaussian-smoothed masks, they enable seamless multi-resolution blending.  
+        We successfully recreated the Oraple example (vertical seam) and extended it to irregular masks for creative results.  
+
+        </p>
+
+
+        
+        <div class="subhead sub" id="p24b">2.4 <strong>Bells &amp; Whistles</strong></div>
+        <p>
+        In addition to the standard Laplacian blending, we experimented with <strong>color transfer</strong> to improve the naturalness of the blended result.  
+        A direct histogram matching of all pixel values across the full dynamic range tends to <em>over-correct</em>, 
+        leading to unnatural skin tones or washed-out colors.  
+        Instead, we proposed a <strong>peak-based histogram matching</strong> method:
+        </p>
+        
+        <p class="center">
+          I′ = match_hist( I | peak range of R )
+        </p>
+        
+        <p>
+        Concretely, for each color channel, we computed the histogram of the reference image and located the largest peak.  
+        We then defined a narrow intensity band around this peak (≈25% of the intensity range) and only matched the pixels falling into this band.  
+        This ensures that the global color distribution of the source image is preserved, while harmonizing the most visually dominant regions (e.g., skin, background) to match the target.  
+        This method was implemented in <code>match_histograms_peak</code>, and then integrated with the blending pipeline.
+        </p>
+        
+        <p>
+        The <code>bandwidth</code> parameter controls how wide the adjustment band is around the dominant peak.  
+        In our implementation, we set <code>bandwidth = 0.25</code>, which means pixel values within ±12.5% of the peak intensity were considered for histogram matching.  
+        A smaller bandwidth would make the adjustment too localized and less effective, while a larger bandwidth would approach full-range matching and risk introducing distortions.  
+        Thus, <code>0.25</code> offered a good balance between preserving the overall style and achieving smoother transitions.
+        </p>
+        
+        <p>
+        The benefit of this approach is that it avoids strong distortions in low-frequency background regions while still aligning the overall color tone between the two images.  
+        Unlike full-range histogram matching, which may transfer irrelevant features or exaggerate noise, 
+        peak-based matching makes the transition zone between the two blended images less noticeable and more visually coherent.
+        </p>
+        
+        <figure class="center">
+          <img src="media/part2_3_bw_eye.png" alt="Blending with and without peak-based color matching" style="max-width:900px;">
+          <figcaption>
+          Comparison of blending results: Left — original blending without color matching; Right — blending after peak-based histogram matching  
+          (<code>bandwidth = 0.25</code>). The peak-matched version shows more natural consistency in skin tones and smoother transition.
+          </figcaption>
+        </figure>
+
+
+    </section>
+
+    <p class="footer">This page is responsive and print-friendly.</p>
+  </div>
+</body>
+</html>
