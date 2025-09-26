@@ -54,7 +54,6 @@
     <!-- Part 1 -->
     <section class="part" id="part1">
       <h2>Part 1: Fun with Filters</h2>
-      <p class="lead">This section covers fundamental filtering operations and extensions.</p>
 
       <div class="subhead" id="p11">1.1 Convolutions from Scratch!</div>
       <p>We implemented 2D convolution from scratch with two approaches: one using <strong>four nested loops</strong>, and another using <strong>two loops</strong> with NumPy slicing. Below are the code snippets and results for comparison.</p>
@@ -136,6 +135,7 @@
       <p>We use <strong>zero-padding</strong>, meaning pixels outside the image are treated as 0.
          This ensures output size matches input size, but introduces dark edges near borders.</p>
 
+        <hr>
         <div class="subhead" id="p12">1.2 Finite Difference Operator</div>
         <p>
         To detect edges, we first applied the finite difference operators <code>Dx = [[1, 0, -1]]</code> and <code>Dy = [[1], [0], [-1]]</code> 
@@ -171,7 +171,7 @@
         most noise is removed while salient object boundaries are preserved.
         </p>
 
-        
+        <hr>
         <div class="subhead" id="p13">1.3 Derivative of Gaussian (DoG) Filter</div>
         <p>
         Applying finite difference operators <code>Dx</code> and <code>Dy</code> directly to the original image often produces noisy edge maps, 
@@ -199,7 +199,7 @@
         This achieves nearly identical edge maps while reducing computation, 
         since smoothing and differentiation are performed in a single convolution.
         </p>
-
+   
         <div class="subhead sub" id="p13b">1.3 <strong>Bells &amp; Whistles</strong></div>
         <p>
         In addition to detecting edges, we can also compute the <strong>gradient orientation</strong> at each pixel. 
@@ -317,7 +317,7 @@
         </p>
 
 
-
+        <hr>
         <div class="subhead" id="p22">2.2 Hybrid Images</div>
         <p>
         Hybrid images are created by combining the <strong>low-frequency</strong> component of one image 
@@ -490,7 +490,7 @@
         In summary, color can enhance hybrid images, but it is most effective when applied to the high-frequency component only.  
         This way, the fine details receive a perceptual boost without disrupting the global structure provided by the low frequencies.
         </p>
-
+        <hr>
         <div class="subhead" id="p23">2.3 Gaussian and Laplacian Stacks</div>
         <p>
         We first implemented the <strong>Gaussian stack</strong> and <strong>Laplacian stack</strong>.  
@@ -571,38 +571,46 @@
         As seen above, the Gaussian mask smooths the transition across the seam, avoiding a hard boundary and producing a natural-looking Oraple.
         </p>
         
-        <hr>
+ 
         
-        <h4>Example 2: Face + Hand with Irregular Mask</h4>
+        <h4>Example 2: Face (Eye Region) + Hand with Irregular Mask</h4>
         <p>
-        Next, we experimented with an irregular mask.  
-        Instead of a simple vertical seam, the mask was drawn manually as a binary region indicating where the face should remain (white = keep face, black = replace with hand).  
-        This binary mask was then smoothed with a Gaussian filter (<code>gaussian_filter</code>) so that its boundary transitioned smoothly.  
-        This ensures that the blending does not produce sharp edges or visible seams.
+        In this experiment, we designed an irregular mask that specifically covered the <strong>eye region of the face</strong>.  
+        The mask was binary (white = keep face eye region, black = replace with hand), then smoothed with a Gaussian filter (<code>gaussian_filter</code>) 
+        to ensure gradual blending at the boundaries.  
+        This allowed us to seamlessly transplant the eye area of the face onto the hand image, producing a surreal composite.  
+        The Gaussian smoothing was essential: without it, the eye boundary would appear as a harsh cut, whereas with smoothing, the result blended smoothly into the hand.
         </p>
         
         <figure class="center">
-          <img src="media/part2_3_eye.png" alt="Face + Hand blending with irregular mask" style="max-width:900px;">
-          <figcaption>Blending with an irregular mask (face + hand). The smoothed mask allows for arbitrary shapes and ensures seamless transitions.</figcaption>
+          <img src="media/part2_3_eye.png" alt="Face eye blended onto hand" style="max-width:900px;">
+          <figcaption>
+            Blending with an irregular mask (face eye region + hand).  
+            The smoothed mask ensures the eye merges naturally into the texture of the hand.
+          </figcaption>
         </figure>
         
-        <hr>
+
         
-        <h4>Example 3: Another Face + Hand with Different Mask</h4>
+        <h4>Example 3: Face (Mouth Region) + Hand with Irregular Mask</h4>
         <p>
-        We repeated the experiment with another face-hand pair and a different irregular mask.  
-        This example demonstrates the flexibility of Laplacian stack blending: 
-        as long as a suitable mask is provided, two images can be merged seamlessly even with complex boundaries.  
-        Again, the role of the Gaussian-smoothed mask is crucial: without smoothing, the boundary would be visibly harsh, 
-        but with smoothing, the result looks natural and continuous.
+        For the third example, we created another irregular mask that targeted the <strong>mouth region of the face</strong>.  
+        Again, the mask was smoothed with a Gaussian filter so that the mouth blended seamlessly onto a different hand image.  
+        This highlights the flexibility of Laplacian stack blending: by carefully designing the mask, 
+        we can merge arbitrary facial regions into another object in a way that looks continuous and natural.  
+        The Gaussian-smoothed mask softens the transition, avoiding sharp boundaries and making the surreal effect visually convincing.
         </p>
         
         <figure class="center">
-          <img src="media/part2_3_mouth.png" alt="Another irregular blending example" style="max-width:900px;">
-          <figcaption>Blending with a second irregular mask (face + hand). The result shows a smooth composite image with no hard edges.</figcaption>
+          <img src="media/part2_3_mouth.png" alt="Face mouth blended onto hand" style="max-width:900px;">
+          <figcaption>
+            Blending with a second irregular mask (face mouth + hand).  
+            The result shows a surreal but smooth composite, where the mouth merges into the hand without visible seams.
+          </figcaption>
         </figure>
         
-        <hr>
+
+
         
         <p>
         In summary, Gaussian and Laplacian stacks provide a frequency-based decomposition of images.  
