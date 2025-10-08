@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CS280A Project 3 — Image Warping and Mosaicing</title>
+
+  <link rel="stylesheet" href="../shared.css">
+  <link rel="stylesheet" href="./project3.css">
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <h1>CS280A Project 3 — Image Warping and Mosaicing</h1>
+      <div class="meta">Name: <strong>Xi Cheng</strong> · Date: <strong>2025-10-08</strong></div>
+    </header>
+
+    <!-- ========================== -->
+    <!--      TABLE OF CONTENTS     -->
+    <!-- ========================== -->
+    <nav class="toc">
+      <h2>Table of Contents</h2>
+      <ul>
+        <li><a href="#partA">Part A: Manual Image Mosaicing</a>
+          <ul>
+            <li><a href="#a1">A.1 Shoot the Pictures</a></li>
+            <li><a href="#a2">A.2 Recover Homographies</a></li>
+            <li><a href="#a3">A.3 Warp the Images</a></li>
+            <li><a href="#a4">A.4 Blend the Images into a Mosaic</a></li>
+            <li><a href="#a5">A.5 Bells & Whistles</a></li>
+          </ul>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- ========================== -->
+    <!--         PART A START        -->
+    <!-- ========================== -->
+    <section class="part" id="partA">
+      <h2>Part A: Manual Image Mosaicing</h2>
+      <p class="lead">
+        In this part, I manually select correspondences between images to build a panorama.  
+        The pipeline includes five main steps: capturing overlapping images, estimating homographies,  
+        warping each image to a reference frame, and blending them into a seamless mosaic.
+      </p>
+
+        <!-- A.1 -->
+        <div class="subhead" id="a1">A.1 Shoot the Pictures</div>
+        <p>
+          I captured three sets of overlapping photos by fixing the <strong>center of projection (COP)</strong> 
+          and rotating the camera horizontally. This ensures projective (perspective) transforms between images 
+          for reliable homography estimation.
+        </p>
+        
+        <ul>
+          <li>Avoided fisheye lenses and kept straight lines undistorted.</li>
+          <li>Shot close in time to keep lighting and subjects consistent.</li>
+          <li>Maintained about <strong>40–70%</strong> overlap between frames.</li>
+        </ul>
+        
+        <p>
+          The first two sets were taken outdoors ,  
+          and the third set indoors. Each set contains three overlapping photos.
+        </p>
+        
+        <!-- ====== Set 1 ====== -->
+        <figure class="center">
+          <div class="grid-3">
+            <a href="#img1_1"><img src="media/img1_1.jpg" alt="Outdoor Set 1 - Image 1"></a>
+            <a href="#img1_2"><img src="media/img1_2.jpg" alt="Outdoor Set 1 - Image 2"></a>
+            <a href="#img1_3"><img src="media/img1_3.jpg" alt="Outdoor Set 1 - Image 3"></a>
+          </div>
+          <figcaption>Set 1 – Outdoor buildings.</figcaption>
+        </figure>
+        
+        <!-- ====== Set 2 ====== -->
+        <figure class="center">
+          <div class="grid-3">
+            <a href="#img2_1"><img src="media/img2_1.jpg" alt="Outdoor Set 2 - Image 1"></a>
+            <a href="#img2_2"><img src="media/img2_2.jpg" alt="Outdoor Set 2 - Image 2"></a>
+            <a href="#img2_3"><img src="media/img2_3.jpg" alt="Outdoor Set 2 - Image 3"></a>
+          </div>
+          <figcaption>Set 2 – Outdoor buildings.</figcaption>
+        </figure>
+        
+        <!-- ====== Set 3 ====== -->
+        <figure class="center">
+          <div class="grid-3">
+            <a href="#img3_1"><img src="media/img3_1.jpg" alt="Indoor Set 3 - Image 1"></a>
+            <a href="#img3_2"><img src="media/img3_2.jpg" alt="Indoor Set 3 - Image 2"></a>
+            <a href="#img3_3"><img src="media/img3_3.jpg" alt="Indoor Set 3 - Image 3"></a>
+          </div>
+          <figcaption>Set 3 – Indoor scene</figcaption>
+        </figure>
+        
+        <p>
+          These sequences provide sufficient parallax-free overlap for computing homographies and creating mosaics in later steps.
+        </p>
+        
+        <!-- ====== Lightbox targets ====== -->
+        <!-- Set 1 -->
+        <a href="#" class="lightbox" id="img1_1"><img src="media/img1_1.jpg" alt="Outdoor Set 1 enlarged"></a>
+        <a href="#" class="lightbox" id="img1_2"><img src="media/img1_2.jpg" alt="Outdoor Set 1 enlarged"></a>
+        <a href="#" class="lightbox" id="img1_3"><img src="media/img1_3.jpg" alt="Outdoor Set 1 enlarged"></a>
+        <!-- Set 2 -->
+        <a href="#" class="lightbox" id="img2_1"><img src="media/img2_1.jpg" alt="Outdoor Set 2 enlarged"></a>
+        <a href="#" class="lightbox" id="img2_2"><img src="media/img2_2.jpg" alt="Outdoor Set 2 enlarged"></a>
+        <a href="#" class="lightbox" id="img2_3"><img src="media/img2_3.jpg" alt="Outdoor Set 2 enlarged"></a>
+        <!-- Set 3 -->
+        <a href="#" class="lightbox" id="img3_1"><img src="media/img3_1.jpg" alt="Indoor Set 3 enlarged"></a>
+        <a href="#" class="lightbox" id="img3_2"><img src="media/img3_2.jpg" alt="Indoor Set 3 enlarged"></a>
+        <a href="#" class="lightbox" id="img3_3"><img src="media/img3_3.jpg" alt="Indoor Set 3 enlarged"></a>
+        
+        <!-- A.2 -->
+        <div class="subhead" id="a2">A.2 Recover Homographies</div>
+        
+        <p>
+          Before aligning and blending the images, we first need to recover the <strong>projective transformation</strong> (homography)
+          between each pair of overlapping images.  
+          A homography maps points from one image plane to another according to:
+        </p>
+        
+        <div class="formula">
+          <span style="font-family:'Times New Roman', serif; font-size:1.05rem;">
+            <b>p′ = H&nbsp;p</b>, &nbsp; where H is a 3×3 matrix with 8 degrees of freedom (<i>h</i><sub>33</sub> = 1).
+          </span>
+        </div>
+        
+        <p>
+          The matrix <code>H</code> is estimated from a set of corresponding points (<i>p</i>, <i>p′</i>) 
+          selected manually between two overlapping images.  
+          Each correspondence contributes two linear equations, allowing us to solve for the eight unknown entries of H.
+        </p>
+        
+        <h4>Method Overview</h4>
+        <p>
+          I implemented a function:
+        </p>
+        
+        <div class="formula">
+          <code style="font-size:1.05rem;">H = computeH(im1_pts, im2_pts)</code>
+        </div>
+        
+        <p>
+          Given <i>n</i> pairs of points (<code>im1_pts</code>, <code>im2_pts</code>), we form a linear system <b>A h = b</b>,  
+          where <b>h</b> is a vector of the eight unknowns of H.  
+          Each pair <b>p</b> = [x y 1]<sup>T</sup>, <b>p′</b> = [x′ y′ 1]<sup>T</sup> contributes two equations derived from the projective constraint:
+        </p>
+        
+        <div class="formula">
+          <span style="font-family:'Times New Roman', serif; font-size:1.05rem; line-height:1.6;">
+            x′(h<sub>7</sub>x + h<sub>8</sub>y + 1) = h<sub>1</sub>x + h<sub>2</sub>y + h<sub>3</sub><br>
+            y′(h<sub>7</sub>x + h<sub>8</sub>y + 1) = h<sub>4</sub>x + h<sub>5</sub>y + h<sub>6</sub>
+          </span>
+        </div>
+        
+        <p>
+          With at least 4 correspondences (<i>n ≥ 4</i>), we solve for <b>h</b> using least squares to minimize ‖A h − b‖²:
+        </p>
+        
+        <div class="formula">
+          <span style="font-family:'Segoe UI', ui-monospace, monospace; font-size:1.05rem;">
+            h = (A<sup>T</sup>A)<sup>−1</sup>A<sup>T</sup>b , &nbsp;&nbsp; then &nbsp; H = reshape([h; 1], 3×3)
+          </span>
+        </div>
+        
+        <pre><code class="language-python">def computeH(im1_pts, im2_pts):
+            # Build A and b from n correspondences
+            for (x, y), (xp, yp) in zip(im1_pts, im2_pts):
+                A.append([x, y, 1, 0, 0, 0, -x*xp, -y*xp])
+                A.append([0, 0, 0, x, y, 1, -x*yp, -y*yp])
+                b.extend([xp, yp])
+            # Solve least squares Ah=b
+            h, *_ = np.linalg.lstsq(A, b, rcond=None)
+            h = np.append(h, 1)
+            return h.reshape((3,3))</code></pre>
+        
+        <h4>Point Correspondences</h4>
+        <p>
+          I manually selected more than 4 point correspondences 
+          and saved them in JSON format.  
+          The visualization below shows the correspondences between two overlapping images 
+          (blue = points in image 1, green = points in image 2, red lines = matches).
+        </p>
+        
+        <figure class="center">
+          <img src="media/A2.png" alt="Point correspondences between two images" style="max-width:850px;">
+          <figcaption>Visualized correspondences used for homography estimation.</figcaption>
+        </figure>
+        
+        <h4>Recovered Homography Matrix</h4>
+        <p>
+          Solving the least-squares system yields the following 3×3 homography matrix:
+        </p>
+        
+        <pre><code class="language-text">Homography from img1_1 → img1_2:
+        [[ 1.58520953e+00  8.46559002e-02 -1.52327673e+03]
+         [ 1.61001912e-01  1.38435647e+00 -4.29478965e+02]
+         [ 1.57146223e-04  2.16525724e-05  1.00000000e+00]]
+        </code></pre>
+        
+        <p>
+          Normalizing point coordinates (centering + scaling) before solving greatly improves numerical stability.  
+          The recovered <code>H</code> accurately maps planar features between the two views, 
+          forming the geometric foundation for warping and mosaicing in later parts.
+        </p>
+
+        
+        <!-- A.3 -->
+        <div class="subhead" id="a3">A.3 Warp the Images</div>
+        
+        <p>
+          With the recovered homographies, we can now <strong>warp each image toward a reference plane</strong>.
+          Warping remaps pixel coordinates from the input image to new locations according to:
+        </p>
+        
+        <div class="formula">
+          <span style="font-family:'Times New Roman', serif; font-size:1.05rem;">
+            p′ ≈ H&nbsp;p &nbsp;&nbsp;&nbsp;&nbsp;⇔&nbsp;&nbsp;&nbsp;&nbsp; p ≈ H<sup>−1</sup>p′
+          </span>
+        </div>
+        
+        <p>
+          To avoid holes in the output, we use <strong>inverse warping</strong>:  
+          for each output pixel <i>p′</i>, compute its source location <i>p = H<sup>−1</sup>p′</i> and interpolate its intensity value.  
+          Two interpolation methods were implemented manually:
+        </p>
+        
+        <h4>Interpolation Methods</h4>
+        
+        <p>
+          Two interpolation strategies were implemented <strong>from scratch</strong>, without using any library functions:
+        </p>
+        
+        <ul>
+          <li>
+            <p>
+              <strong>Nearest Neighbor Interpolation</strong>:  
+              For each destination pixel (<i>x′, y′</i>), we compute its corresponding point (<i>x, y</i>) in the source image.
+              We then <b>round</b> both coordinates to the nearest integer and copy that pixel value directly.  
+              This method is computationally very fast (constant time per pixel) but can cause visible artifacts such as
+              <em>jagged edges</em> or <em>blocky patterns</em> because it ignores sub-pixel precision.  
+              It effectively creates a piecewise-constant approximation of the original intensity field.
+            </p>
+          </li>
+        
+          <li>
+            <p>
+              <strong>Bilinear Interpolation</strong>:  
+              Instead of snapping to the nearest pixel, bilinear interpolation considers the <b>four surrounding pixels</b>
+              of the computed source coordinate (<i>x, y</i>).  
+              It computes the final intensity as a <b>weighted average</b> based on the fractional distances to each corner:  
+            </p>
+        
+            <div class="formula">
+              <span style="font-family:'Times New Roman', serif; font-size:1.05rem; line-height:1.6;">
+                I(x, y) = I<sub>00</sub>(1−dx)(1−dy) + I<sub>10</sub>dx(1−dy) + I<sub>01</sub>(1−dx)dy + I<sub>11</sub>dxdy
+              </span>
+            </div>
+        
+            <p>
+              where <i>dx</i> and <i>dy</i> are the fractional offsets within the local 2×2 neighborhood.  
+              This method produces much <b>smoother and more continuous intensity transitions</b>,  
+              particularly for slanted edges or text regions, at the cost of roughly 3–4× higher computation time.
+            </p>
+          </li>
+        </ul>
+        
+
+        
+        <h4>Rectification Examples</h4>
+        
+        <p>
+          I tested both interpolation methods on three rectification tasks.
+          For first 2 image, I clicked four corners of a rectangular region and mapped them to a perfect square (0,0)–(800,800). And for the last one, I warped the one image to the other which will be showed in A.4.
+        </p>
+        
+        <!-- Example 1 -->
+        <figure class="center">
+          <div class="grid-1">
+            <a href="#A3_1"><img src="media/A3_1.png" alt="Rectification result example 1" style="max-width:900px;"></a>
+          </div>
+          <figcaption>Example 1</figcaption>
+        </figure>
+        <a href="#" class="lightbox" id="A3_1">
+          <img src="media/A3_1.png" alt="Rectification result example 1 enlarged">
+        </a>
+        
+        <!-- Example 2 -->
+        <figure class="center">
+          <div class="grid-1">
+            <a href="#A3_2"><img src="media/A3_2.png" alt="Rectification result example 2" style="max-width:900px;"></a>
+          </div>
+          <figcaption>Example 2</figcaption>
+        </figure>
+        <a href="#" class="lightbox" id="A3_2">
+          <img src="media/A3_2.png" alt="Rectification result example 2 enlarged">
+        </a>
+        
+        <!-- Example 3 -->
+        <figure class="center">
+          <div class="grid-1">
+            <a href="#A3_3"><img src="media/A3_3.png" alt="Warp result example 3" style="max-width:900px;"></a>
+          </div>
+          <figcaption>Example 3</figcaption>
+        </figure>
+        <a href="#" class="lightbox" id="A3_3">
+          <img src="media/A3_3.png" alt="Warp result example 3 enlarged">
+        </a>
+        
+        <h4>Runtime Comparison</h4>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>Example</th>
+              <th>Nearest Neighbor</th>
+              <th>Bilinear</th>
+              <th>Speed Ratio (Bilinear / NN)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Rectification 1</td>
+              <td>0.1471 s</td>
+              <td>0.4336 s</td>
+              <td>2.95× slower</td>
+            </tr>
+            <tr>
+              <td>Rectification 2</td>
+              <td>0.3128 s</td>
+              <td>1.2111 s</td>
+              <td>3.87× slower</td>
+            </tr>
+            <tr>
+              <td>Warp (img1_1 → img1_2)</td>
+              <td>1.3001 s</td>
+              <td>4.2479 s</td>
+              <td>3.27× slower</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <h4>Discussion</h4>
+        
+        <p>
+          From these three examples, we observe that <strong>Nearest Neighbor</strong> interpolation runs approximately 3× faster,  
+          but often introduces aliasing and jagged edges.  
+          <strong>Bilinear</strong> interpolation produces smoother and more visually accurate results by blending neighboring pixels,  
+          at the cost of additional computation.  
+          Overall, bilinear interpolation is preferred for high-quality mosaics,  
+          while nearest neighbor provides a fast reference for debugging and verification.
+        </p>
+                
+        <!-- A.4 -->
+        <div class="subhead" id="a4">A.4 Blend the Images into a Mosaic</div>
+        
+        <p>
+          To build a seamless panorama, I implemented a <strong>homography-based warping and alpha-weighted blending pipeline</strong>.
+          The goal is to align all input images into a common reference frame and blend their overlapping regions smoothly 
+          to remove visible seams and intensity jumps. The following steps describe the process in detail, with key supporting functions noted.
+        </p>
+        
+        <ol>
+          <li>
+            <strong>Homography Estimation:</strong>  
+            For each pair of adjacent images, I compute a homography <code>H<sub>i→i+1</sub></code> using the normalized DLT algorithm implemented in 
+            <code>computeH(im1_pts, im2_pts)</code>.  
+            This transformation maps coordinates from one image into the coordinate system of its neighbor.
+          </li>
+        
+          <li>
+            <strong>Reference Frame Selection:</strong>  
+            The middle image is selected as the reference frame (<code>ref_idx</code>).  
+            All other images are transformed into this frame by chaining their pairwise homographies:
+            <ul>
+              <li>Left of reference: <code>H_to_ref[i] = H_to_ref[i+1] @ H<sub>i→i+1</sub></code></li>
+              <li>Right of reference: <code>H_to_ref[i] = H_to_ref[i-1] @ inv(H<sub>i−1→i</sub>)</code></li>
+            </ul>
+            These transformations are handled by <code>create_multi_image_mosaic()</code>.
+          </li>
+        
+          <li>
+            <strong>Canvas Setup:</strong>  
+            The function <code>compute_bounding_box()</code> determines the bounding region for each warped image 
+            by projecting its four corners using <code>H_to_ref[i]</code>.  
+            The global minimum and maximum extents define the size of the mosaic canvas and its coordinate shift.
+          </li>
+        
+          <li>
+            <strong>Warping with Alpha Masks:</strong>  
+            Each image is inverse-warped into the mosaic coordinate frame, along with a corresponding alpha mask that controls blending.
+            Two alpha strategies were tested:
+            <ul>
+              <li>
+                <strong>Hard Alpha (Baseline):</strong>  
+                Implemented in <code>warp_with_alpha_hard()</code>, this method assigns α=1 for all valid pixels, producing sharp seams at overlaps.
+              </li>
+              <li>
+                <strong>Smooth Feathered Alpha (Improved):</strong>  
+                Implemented in <code>warp_with_alpha_smooth()</code>, this method builds a soft alpha mask using a distance transform:
+                <div class="formula" style="margin:.4em 0;">
+                  α(x,y) = ( d(x,y) / max d )<sup>γ</sup> with γ ≈ 1.2
+                </div>
+                where d(x,y) is the distance to the nearest image boundary.  
+                The mask value decays smoothly near borders, producing gradual transitions and reducing edge artifacts.
+              </li>
+            </ul>
+          </li>
+        
+          <li>
+            <strong>Progressive Blending:</strong>  
+            Each warped image is composited into the global canvas using 
+            <code>blend_images_laplacian()</code>, which performs lightweight Laplacian-like blending.  
+            This function first applies Gaussian smoothing (<code>G</code>) to both images and their alpha masks, 
+            computes Laplacian layers (<code>L = I − G</code>), and fuses them via smoothed alpha weighting:
+            <div class="formula" style="margin:.4em 0;">
+              I<sub>out</sub> = ( A<sub>1</sub>(G<sub>1</sub>+L<sub>1</sub>) + A<sub>2</sub>(G<sub>2</sub>+L<sub>2</sub>) ) / (A<sub>1</sub>+A<sub>2</sub>)
+            </div>
+            This ensures consistent exposure and texture continuity across overlapping regions.
+          </li>
+        
+          <li>
+            <strong>Alpha Accumulation:</strong>  
+            The global alpha mask is updated to record covered regions as new images are blended:
+            <div class="formula" style="margin:.4em 0;">
+              α<sub>mosaic</sub> ← α<sub>mosaic</sub> + α<sub>new</sub> − α<sub>mosaic</sub> · α<sub>new</sub>
+            </div>
+            This maintains a smooth cumulative visibility map for the mosaic.
+          </li>
+        
+        </ol>
+        
+        <p>
+          <strong>Main supporting functions:</strong>
+          <ul>
+            <li><code>computeH</code>: Computes pairwise homographies from matched points.</li>
+            <li><code>compute_bounding_box</code>: Finds the projected bounding region of a warped image.</li>
+            <li><code>warp_with_alpha_hard</code> / <code>warp_with_alpha_smooth</code>: Performs inverse warping with different α strategies.</li>
+            <li><code>blend_images_laplacian</code>: Merges warped images using Gaussian-smoothed α weighting and Laplacian details.</li>
+            <li><code>create_multi_image_mosaic</code>: Orchestrates warping, placement, and blending of all images.</li>
+          </ul>
+        </p>
+        
+        <p>
+          The results show that <strong>smooth feathered alpha blending</strong> 
+          significantly reduces seam visibility and exposure mismatches compared to hard alpha blending.  
+          The weighted falloff near borders produces continuous, visually pleasing panoramas 
+          while retaining sharpness in non-overlapping areas.
+        </p>
+        
+        <!-- Scene Results -->
+        <figure class="center">
+          <a href="media/A4_1_original.png" target="_blank">
+            <img src="media/A4_1_original.png" alt="Scene 1 originals" style="max-width:900px; border-radius:8px;">
+          </a>
+          <figcaption>Scene 1 (outdoor): original inputs.</figcaption>
+        </figure>
+        
+        <figure class="center">
+          <a href="media/A4_1_hard.png" target="_blank">
+            <img src="media/A4_1_hard.png" alt="Scene 1 hard alpha" style="max-width:430px; margin-right:var(--gap); border-radius:8px;">
+          </a>
+          <a href="media/A4_1_smooth.png" target="_blank">
+            <img src="media/A4_1_smooth.png" alt="Scene 1 smooth alpha" style="max-width:430px; border-radius:8px;">
+          </a>
+          <figcaption>Scene 1: hard α (left) vs. smooth α (right).</figcaption>
+        </figure>
+        
+        <figure class="center">
+          <a href="media/A4_2_original.png" target="_blank">
+            <img src="media/A4_2_original.png" alt="Scene 2 originals" style="max-width:900px; border-radius:8px;">
+          </a>
+          <figcaption>Scene 2 (outdoor): original inputs.</figcaption>
+        </figure>
+        
+        <figure class="center">
+          <a href="media/A4_2_hard.png" target="_blank">
+            <img src="media/A4_2_hard.png" alt="Scene 2 hard alpha" style="max-width:430px; margin-right:var(--gap); border-radius:8px;">
+          </a>
+          <a href="media/A4_2_smooth.png" target="_blank">
+            <img src="media/A4_2_smooth.png" alt="Scene 2 smooth alpha" style="max-width:430px; border-radius:8px;">
+          </a>
+          <figcaption>Scene 2: hard α (left) vs. smooth α (right).</figcaption>
+        </figure>
+        
+        <figure class="center">
+          <a href="media/A4_3_original.png" target="_blank">
+            <img src="media/A4_3_original.png" alt="Scene 3 originals" style="max-width:900px; border-radius:8px;">
+          </a>
+          <figcaption>Scene 3 (indoor): original inputs.</figcaption>
+        </figure>
+        
+        <figure class="center">
+          <a href="media/A4_3_hard.png" target="_blank">
+            <img src="media/A4_3_hard.png" alt="Scene 3 hard alpha" style="max-width:430px; margin-right:var(--gap); border-radius:8px;">
+          </a>
+          <a href="media/A4_3_smooth.png" target="_blank">
+            <img src="media/A4_3_smooth.png" alt="Scene 3 smooth alpha" style="max-width:430px; border-radius:8px;">
+          </a>
+          <figcaption>Scene 3: hard α (left) vs. smooth α (right).</figcaption>
+        </figure>
+
+
+    
+    <!-- A.5 -->
+    <div class="subhead" id="a5">A.5 Bells & Whistles</div>
+    
+    <p>
+      As an extension to the planar mosaic, I implemented <strong>cylindrical projection</strong> to better handle wide-angle panoramas.  
+      In this approach, each image is first projected onto a cylindrical surface before homography computation and blending.  
+      This reduces the perspective distortion that appears when the camera rotates over a large field of view.
+    </p>
+    
+    <ol>
+      <li>
+        <strong>Cylindrical Projection Mapping:</strong>  
+        The key difference from planar mosaicing lies in remapping every pixel from the image plane to cylindrical coordinates.  
+        Given a focal length <code>f</code>, and assuming the optical axis points forward, each pixel <code>(x, y)</code> is projected as:
+        <div class="formula" style="margin:.5em 0;">
+          x′ = f · arctan((x − cₓ) / f) + cₓ,&nbsp;&nbsp;
+          y′ = f · (y − cᵧ) / √((x − cₓ)² + f²) + cᵧ
+        </div>
+        where (<code>cₓ, cᵧ</code>) is the image center.  
+        This transformation preserves vertical lines and bends horizontal ones smoothly, producing a natural-looking panorama even for large rotations.
+        <br>
+        Implemented in:
+        <ul>
+          <li><code>project_points_to_cylindrical()</code>: projects matched feature points from the original image plane into the cylindrical space.</li>
+          <li><code>cylindrical_warp_image()</code>: remaps each image pixel using <code>cv2.remap</code> for efficient inverse warping.</li>
+        </ul>
+      </li>
+    
+      <li>
+        <strong>Homography Re-Estimation on Cylindrical Domain:</strong>  
+        After projection, all corresponding points (previously stored in JSON files) are converted to cylindrical coordinates.  
+        The new homographies are then recomputed using <code>computeH()</code> on these projected points, ensuring geometric consistency on the curved surface.
+      </li>
+    
+      <li>
+        <strong>Multi-Image Blending:</strong>  
+        Once warped, the images are merged using the same blending pipeline introduced in A.4 —  
+        <code>warp_with_alpha_smooth()</code> for soft feathered alpha masks and <code>blend_images_laplacian()</code> for smooth exposure transitions.  
+        The composition order (<em>left → reference → right</em>) and alpha update formula remain unchanged, handled by <code>create_multi_image_mosaic()</code>.
+      </li>
+    
+      <li>
+        <strong>Focal Length Variation:</strong>  
+        The effective focal length <code>f</code> determines the curvature of the cylindrical projection.  
+        Smaller <code>f</code> values yield stronger curvature (wider field of view but more compression),  
+        while larger <code>f</code> values approximate a planar projection.  
+        To visualize this effect, I generated mosaics using three focal scales:
+        <ul>
+          <li><code>focal_scale = 1.0</code> → strong curvature</li>
+          <li><code>focal_scale = 1.3</code> → balanced projection</li>
+          <li><code>focal_scale = 1.5</code> → nearly planar</li>
+        </ul>
+        Each case uses the same <code>test_multi_mosaic_cylindrical()</code> function, which handles projection, homography computation, and blending automatically.
+      </li>
+    </ol>
+    
+
+    
+    <p>
+      Cylindrical projection effectively preserves scene geometry in wide-angle mosaics,  
+      minimizing vertical distortion and preventing the “bowing” artifacts typical of planar projections.  
+      As the focal length increases, the panorama gradually transitions back toward the planar case.
+    </p>
+    
+    <!-- Cylindrical Results -->
+    <figure class="center">
+      <a href="media/A5_3_1.0.png" target="_blank">
+        <img src="media/A5_3_1.0.png" alt="Cylindrical mosaic f=1.0" style="max-width:900px; border-radius:8px;">
+      </a>
+      <figcaption>Mosaic using cylindrical projection (focal scale = 1.0).</figcaption>
+    </figure>
+    
+    <figure class="center">
+      <a href="media/A5_3_1.3.png" target="_blank">
+        <img src="media/A5_3_1.3.png" alt="Cylindrical mosaic f=1.3" style="max-width:900px; border-radius:8px;">
+      </a>
+      <figcaption>Mosaic using cylindrical projection (focal scale = 1.3).</figcaption>
+    </figure>
+    
+    <figure class="center">
+      <a href="media/A5_3_1.5.png" target="_blank">
+        <img src="media/A5_3_1.5.png" alt="Cylindrical mosaic f=1.5" style="max-width:900px; border-radius:8px;">
+      </a>
+      <figcaption>Mosaic using cylindrical projection (focal scale = 1.5).</figcaption>
+    </figure>
+
+    </section>
+
+    <p class="footer">This page documents only Part A (A.1–A.5) of Project 3. It is responsive and print-friendly.</p>
+  </div>
+</body>
+</html>
