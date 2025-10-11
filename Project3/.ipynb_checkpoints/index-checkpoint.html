@@ -31,8 +31,19 @@
             <li><a href="#a5">A.5 Bells & Whistles</a></li>
           </ul>
         </li>
+    
+        <li><a href="#partB">Part B: Automatic Image Mosaicing</a>
+          <ul>
+            <li><a href="#b1">B.1 Detecting corner features in an image </a></li>
+            <li><a href="#b2">B.2 Extracting a Feature Descriptor for each feature point</a></li>
+            <li><a href="#b3">B.3 Matching these feature descriptors between two images </a></li>
+            <li><a href="#b4">B.4 Use a robust method (RANSAC) to compute and apply homographies </a></li>
+            <li><a href="#b5">B.5 Bells & Whistles</a></li>
+          </ul>
+        </li>
       </ul>
     </nav>
+
 
     <!-- ========================== -->
     <!--         PART A START        -->
@@ -452,147 +463,521 @@
         
         <!-- Scene Results -->
         <figure class="center">
-          <a href="media/A4_1_original.png" target="_blank">
-            <img src="media/A4_1_original.png" alt="Scene 1 originals" style="max-width:900px; border-radius:8px;">
-          </a>
+          <a href="#A4_1_original"><img src="media/A4_1_original.png" alt="Scene 1 originals" style="max-width:900px; border-radius:8px;"></a>
           <figcaption>Scene 1 (outdoor): original inputs.</figcaption>
         </figure>
+        <a href="#" class="lightbox" id="A4_1_original"><img src="media/A4_1_original.png" alt="Scene 1 originals enlarged"></a>
         
         <figure class="center">
-          <a href="media/A4_1_hard.png" target="_blank">
-            <img src="media/A4_1_hard.png" alt="Scene 1 hard alpha" style="max-width:430px; margin-right:var(--gap); border-radius:8px;">
-          </a>
-          <a href="media/A4_1_smooth.png" target="_blank">
-            <img src="media/A4_1_smooth.png" alt="Scene 1 smooth alpha" style="max-width:430px; border-radius:8px;">
-          </a>
+          <div class="grid-2">
+            <a href="#A4_1_hard"><img src="media/A4_1_hard.png" alt="Scene 1 hard alpha"></a>
+            <a href="#A4_1_smooth"><img src="media/A4_1_smooth.png" alt="Scene 1 smooth alpha"></a>
+          </div>
           <figcaption>Scene 1: hard α (left) vs. smooth α (right).</figcaption>
         </figure>
-        
+        <a href="#" class="lightbox" id="A4_1_hard"><img src="media/A4_1_hard.png" alt="Scene 1 hard alpha enlarged"></a>
+        <a href="#" class="lightbox" id="A4_1_smooth"><img src="media/A4_1_smooth.png" alt="Scene 1 smooth alpha enlarged"></a>
+
         <figure class="center">
-          <a href="media/A4_2_original.png" target="_blank">
-            <img src="media/A4_2_original.png" alt="Scene 2 originals" style="max-width:900px; border-radius:8px;">
-          </a>
+          <a href="#A4_2_original"><img src="media/A4_2_original.png" alt="Scene 2 originals" style="max-width:900px; border-radius:8px;"></a>
           <figcaption>Scene 2 (outdoor): original inputs.</figcaption>
         </figure>
-        
+        <a href="#" class="lightbox" id="A4_2_original"><img src="media/A4_2_original.png" alt="Scene 2 originals enlarged"></a>
+
         <figure class="center">
-          <a href="media/A4_2_hard.png" target="_blank">
-            <img src="media/A4_2_hard.png" alt="Scene 2 hard alpha" style="max-width:430px; margin-right:var(--gap); border-radius:8px;">
-          </a>
-          <a href="media/A4_2_smooth.png" target="_blank">
-            <img src="media/A4_2_smooth.png" alt="Scene 2 smooth alpha" style="max-width:430px; border-radius:8px;">
-          </a>
+          <div class="grid-2">
+            <a href="#A4_2_hard"><img src="media/A4_2_hard.png" alt="Scene 2 hard alpha"></a>
+            <a href="#A4_2_smooth"><img src="media/A4_2_smooth.png" alt="Scene 2 smooth alpha"></a>
+          </div>
           <figcaption>Scene 2: hard α (left) vs. smooth α (right).</figcaption>
         </figure>
-        
+        <a href="#" class="lightbox" id="A4_2_hard"><img src="media/A4_2_hard.png" alt="Scene 2 hard alpha enlarged"></a>
+        <a href="#" class="lightbox" id="A4_2_smooth"><img src="media/A4_2_smooth.png" alt="Scene 2 smooth alpha enlarged"></a>
+
         <figure class="center">
-          <a href="media/A4_3_original.png" target="_blank">
-            <img src="media/A4_3_original.png" alt="Scene 3 originals" style="max-width:900px; border-radius:8px;">
-          </a>
+          <a href="#A4_3_original"><img src="media/A4_3_original.png" alt="Scene 3 originals" style="max-width:900px; border-radius:8px;"></a>
           <figcaption>Scene 3 (indoor): original inputs.</figcaption>
         </figure>
-        
+        <a href="#" class="lightbox" id="A4_3_original"><img src="media/A4_3_original.png" alt="Scene 3 originals enlarged"></a>
+
         <figure class="center">
-          <a href="media/A4_3_hard.png" target="_blank">
-            <img src="media/A4_3_hard.png" alt="Scene 3 hard alpha" style="max-width:430px; margin-right:var(--gap); border-radius:8px;">
-          </a>
-          <a href="media/A4_3_smooth.png" target="_blank">
-            <img src="media/A4_3_smooth.png" alt="Scene 3 smooth alpha" style="max-width:430px; border-radius:8px;">
-          </a>
+          <div class="grid-2">
+            <a href="#A4_3_hard"><img src="media/A4_3_hard.png" alt="Scene 3 hard alpha"></a>
+            <a href="#A4_3_smooth"><img src="media/A4_3_smooth.png" alt="Scene 3 smooth alpha"></a>
+          </div>
           <figcaption>Scene 3: hard α (left) vs. smooth α (right).</figcaption>
         </figure>
+        <a href="#" class="lightbox" id="A4_3_hard"><img src="media/A4_3_hard.png" alt="Scene 3 hard alpha enlarged"></a>
+        <a href="#" class="lightbox" id="A4_3_smooth"><img src="media/A4_3_smooth.png" alt="Scene 3 smooth alpha enlarged"></a>
 
 
     
-    <!-- A.5 -->
-    <div class="subhead" id="a5">A.5 Bells & Whistles</div>
+        <!-- A.5 -->
+        <div class="subhead" id="a5">A.5 Bells & Whistles</div>
+        
+        <p>
+          As an extension to the planar mosaic, I implemented <strong>cylindrical projection</strong> to better handle wide-angle panoramas.  
+          In this approach, each image is first projected onto a cylindrical surface before homography computation and blending.  
+          This reduces the perspective distortion that appears when the camera rotates over a large field of view.
+        </p>
+        
+        <ol>
+          <li>
+            <strong>Cylindrical Projection Mapping:</strong>  
+            The key difference from planar mosaicing lies in remapping every pixel from the image plane to cylindrical coordinates.  
+            Given a focal length <code>f</code>, and assuming the optical axis points forward, each pixel <code>(x, y)</code> is projected as:
+            <div class="formula" style="margin:.5em 0;">
+              x′ = f · arctan((x − cₓ) / f) + cₓ,&nbsp;&nbsp;
+              y′ = f · (y − cᵧ) / √((x − cₓ)² + f²) + cᵧ
+            </div>
+            where (<code>cₓ, cᵧ</code>) is the image center.  
+            This transformation preserves vertical lines and bends horizontal ones smoothly, producing a natural-looking panorama even for large rotations.
+            <br>
+            Implemented in:
+            <ul>
+              <li><code>project_points_to_cylindrical()</code>: projects matched feature points from the original image plane into the cylindrical space.</li>
+              <li><code>cylindrical_warp_image()</code>: remaps each image pixel using <code>cv2.remap</code> for efficient inverse warping.</li>
+            </ul>
+          </li>
+        
+          <li>
+            <strong>Homography Re-Estimation on Cylindrical Domain:</strong>  
+            After projection, all corresponding points (previously stored in JSON files) are converted to cylindrical coordinates.  
+            The new homographies are then recomputed using <code>computeH()</code> on these projected points, ensuring geometric consistency on the curved surface.
+          </li>
+        
+          <li>
+            <strong>Multi-Image Blending:</strong>  
+            Once warped, the images are merged using the same blending pipeline introduced in A.4 —  
+            <code>warp_with_alpha_smooth()</code> for soft feathered alpha masks and <code>blend_images_laplacian()</code> for smooth exposure transitions.  
+            The composition order (<em>left → reference → right</em>) and alpha update formula remain unchanged, handled by <code>create_multi_image_mosaic()</code>.
+          </li>
+        
+          <li>
+            <strong>Focal Length Variation:</strong>  
+            The effective focal length <code>f</code> determines the curvature of the cylindrical projection.  
+            Smaller <code>f</code> values yield stronger curvature (wider field of view but more compression),  
+            while larger <code>f</code> values approximate a planar projection.  
+            To visualize this effect, I generated mosaics using three focal scales:
+            <ul>
+              <li><code>focal_scale = 1.0</code> → strong curvature</li>
+              <li><code>focal_scale = 1.3</code> → balanced projection</li>
+              <li><code>focal_scale = 1.5</code> → nearly planar</li>
+            </ul>
+            Each case uses the same <code>test_multi_mosaic_cylindrical()</code> function, which handles projection, homography computation, and blending automatically.
+          </li>
+        </ol>
+        
+        <p>
+          Cylindrical projection effectively preserves scene geometry in wide-angle mosaics,  
+          minimizing vertical distortion and preventing the “bowing” artifacts typical of planar projections.  
+          As the focal length increases, the panorama gradually transitions back toward the planar case.
+        </p>
+        
+        <!-- Cylindrical Results -->
+        <figure class="center">
+          <a href="#A5_3_1.0"><img src="media/A5_3_1.0.png" alt="Cylindrical mosaic f=1.0" style="max-width:900px; border-radius:8px;"></a>
+          <figcaption>Mosaic using cylindrical projection (focal scale = 1.0).</figcaption>
+        </figure>
+        <a href="#" class="lightbox" id="A5_3_1.0"><img src="media/A5_3_1.0.png" alt="Cylindrical mosaic f=1.0 enlarged"></a>
+        
+        <figure class="center">
+          <a href="#A5_3_1.3"><img src="media/A5_3_1.3.png" alt="Cylindrical mosaic f=1.3" style="max-width:900px; border-radius:8px;"></a>
+          <figcaption>Mosaic using cylindrical projection (focal scale = 1.3).</figcaption>
+        </figure>
+        <a href="#" class="lightbox" id="A5_3_1.3"><img src="media/A5_3_1.3.png" alt="Cylindrical mosaic f=1.3 enlarged"></a>
+        
+        <figure class="center">
+          <a href="#A5_3_1.5"><img src="media/A5_3_1.5.png" alt="Cylindrical mosaic f=1.5" style="max-width:900px; border-radius:8px;"></a>
+          <figcaption>Mosaic using cylindrical projection (focal scale = 1.5).</figcaption>
+        </figure>
+        <a href="#" class="lightbox" id="A5_3_1.5"><img src="media/A5_3_1.5.png" alt="Cylindrical mosaic f=1.5 enlarged"></a>
+    </section>
+    <!-- Part B Header -->
+    <section class="part" id="partB">
+      <h2>Part B: Automatic Image Mosaicing</h2>
     
-    <p>
-      As an extension to the planar mosaic, I implemented <strong>cylindrical projection</strong> to better handle wide-angle panoramas.  
-      In this approach, each image is first projected onto a cylindrical surface before homography computation and blending.  
-      This reduces the perspective distortion that appears when the camera rotates over a large field of view.
-    </p>
-    
-    <ol>
-      <li>
-        <strong>Cylindrical Projection Mapping:</strong>  
-        The key difference from planar mosaicing lies in remapping every pixel from the image plane to cylindrical coordinates.  
-        Given a focal length <code>f</code>, and assuming the optical axis points forward, each pixel <code>(x, y)</code> is projected as:
-        <div class="formula" style="margin:.5em 0;">
-          x′ = f · arctan((x − cₓ) / f) + cₓ,&nbsp;&nbsp;
-          y′ = f · (y − cᵧ) / √((x − cₓ)² + f²) + cᵧ
+        <!-- B.1 -->
+        
+         <div class="subhead" id="b1">B.1 Harris Corner Detection</div>
+        
+        <p>
+          To automate feature selection for image matching, we begin by detecting 
+          <strong>Harris corners</strong> at a single scale. 
+          Harris corners are points with strong intensity variation in orthogonal directions, 
+          making them repeatable and stable for matching across images.
+        </p>
+        
+        <p>
+          The Harris response function <code>H(x, y)</code> is computed from the local gradient structure tensor, 
+          and corner points are selected at local maxima of this response. 
+          This typically yields many keypoints clustered in textured areas, which may not be well distributed spatially.
+        </p>
+        
+        <p>
+          To address this, we apply <strong>Adaptive Non-Maximal Suppression (ANMS)</strong> 
+          to select a fixed number of <em>strong but spatially diverse</em> keypoints.
+          ANMS computes the suppression radius for each corner, defined as the distance to the nearest 
+          significantly stronger corner, and keeps points with the largest radii. 
+          This ensures uniform coverage of the image while retaining strong features.
+        </p>
+        
+        <p>
+          The figures below compare Harris corner detection <em>before</em> and <em>after</em> applying ANMS. 
+          Harris detects many clustered corners, whereas ANMS spreads keypoints across the image — 
+          improving robustness for matching and mosaicing.
+        </p>
+        <figure class="center grid-2">
+          <!-- Before ANMS -->
+          <a href="#B1_before">
+            <img src="media/B1_1.png" alt="Harris corners before ANMS" style="border-radius:8px;">
+          </a>
+        
+          <!-- After ANMS -->
+          <a href="#B1_after">
+            <img src="media/B1_2.png" alt="Harris corners after ANMS" style="border-radius:8px;">
+          </a>
+        
+        </figure>
+        
+        <!-- Lightbox -->
+        <a href="#" class="lightbox" id="B1_before">
+          <img src="media/B1_1.png" alt="Harris corners before ANMS enlarged">
+        </a>
+        <a href="#" class="lightbox" id="B1_after">
+          <img src="media/B1_2.png" alt="Harris corners after ANMS enlarged">
+        </a>
+
+        
+        
+        
+        <!-- B.2 -->
+        
+        <div class="subhead" id="b2">B.2 Extracting a Feature Descriptor for Each Feature Point</div>
+        
+        <p>
+          After detecting corner features, we extract a fixed-length <strong>feature descriptor</strong> around each selected keypoint.
+          The goal is to obtain a stable representation of the local image structure that is robust to changes in illumination and minor geometric variations.
+        </p>
+        
+        <h4>Method Overview</h4>
+        <p>
+          For each corner, a <code>40×40</code> window centered at the keypoint is sampled, then 
+          <strong>downsampled</strong> to an <code>8×8</code> patch to form the descriptor.
+          Before flattening, we apply <strong>bias/gain normalization</strong> (zero mean, unit variance) 
+          to make the descriptor illumination invariant. 
+          Rotation invariance is not considered in this assignment.
+        </p>
+        
+        <p>
+          This simple axis-aligned descriptor provides a compact representation that 
+          can be matched across images using distance-based methods. 
+          The figure below shows several sampled points and their corresponding 8×8 descriptors.
+        </p>
+        
+
+        <figure class="center">
+          <a href="#B2_points">
+            <img src="media/B2_1.png" alt="Selected feature points" style="max-width:500; border-radius:8px;">
+          </a>
+        </figure>
+        <a href="#" class="lightbox" id="B2_points">
+          <img src="media/B2_1.png" alt="Selected feature points enlarged">
+        </a>
+        
+        <figure class="center">
+          <a href="#B2_descriptors">
+            <img src="media/B2_2.png" alt="Extracted feature descriptors" style="max-width:850px; border-radius:8px;">
+          </a>
+        </figure>
+        <a href="#" class="lightbox" id="B2_descriptors">
+          <img src="media/B2_2.png" alt="Extracted feature descriptors enlarged">
+        </a>
+
+
+        <!--   B.3 -->
+        
+        <div class="subhead" id="b3">B.3 Matching Feature Descriptors Between Two Images</div>
+        
+        <p>
+          Once we have extracted normalized 8×8 descriptors for each detected corner,
+          we need to establish <strong>correspondences</strong> between features from different images.
+          The goal is to identify pairs of points that represent the same physical location in the scene.
+        </p>
+        
+        <h4>Method Overview</h4>
+        <p>
+          We implement a simple and effective matching strategy using 
+          <strong>Lowe’s ratio test</strong> (Section 5 of the paper).  
+          For each descriptor in the first image, we compute its Euclidean distance to all descriptors 
+          in the second image and find the two nearest neighbors.  
+          A match is accepted if the ratio between the best and second-best distances is below a threshold 
+          (here, <code>0.8</code>).  
+          This rejects ambiguous matches and keeps only distinctive correspondences.
+        </p>
+        
+        <p>
+          The figure below shows matched keypoints between two images after applying the ratio test.
+          The yellow lines indicate correspondences, with red and green dots marking matched keypoints 
+          in the first and second image respectively.  
+          These correspondences form the basis for robust <strong>homography estimation</strong> in the next step.
+        </p>
+        
+        
+        <figure class="center">
+          <a href="#B3_matches">
+            <img src="media/B3_matches.png" alt="Matched feature pairs between two images" style="max-width:900px; border-radius:8px;">
+          </a>
+        </figure>
+        <a href="#" class="lightbox" id="B3_matches">
+          <img src="media/B3_matches.png" alt="Matched feature pairs enlarged">
+        </a>
+
+        
+
+        <!--    B.4    -->
+        
+        <div class="subhead" id="b4">B.4 Robust Homography Estimation with RANSAC</div>
+        
+        <p>
+          Even after feature matching, some correspondences are incorrect or noisy, 
+          which can significantly degrade homography estimation.  
+          To handle this, I implemented <strong>4-point RANSAC</strong> to robustly estimate 
+          the homography between adjacent image pairs.
+        </p>
+        
+        <h4>Method Overview</h4>
+        <p>
+          In each iteration, four random matches are sampled to compute a candidate homography using <code>computeH()</code>.  
+          All feature points are then projected, and the reprojection error is measured.  
+          Points with error below a fixed threshold are considered inliers.  
+          The model with the maximum number of inliers is selected, and a final homography is 
+          recomputed using all inliers.
+        </p>
+        
+        <p>
+          To evaluate the quality of the automatic stitching pipeline, I used the <strong>same input images</strong> 
+          as in Part A (manual homography) and directly compared the resulting panoramas.
+          The figures below show side-by-side comparisons of <strong>manual vs automatic</strong> stitching results 
+          across three examples.
+        </p>
+        
+
+        
+        <!-- Example 1 -->
+        <div class="grid-2">
+          <figure>
+            <a href="#A4_1_smooth"><img src="media/A4_1_smooth.png"></a>
+            <figcaption>Manual mosaic </figcaption>
+          </figure>
+          <figure>
+            <a href="#B4_1"><img src="media/B4_1.png"></a>
+            <figcaption>Auto mosaic </figcaption>
+          </figure>
         </div>
-        where (<code>cₓ, cᵧ</code>) is the image center.  
-        This transformation preserves vertical lines and bends horizontal ones smoothly, producing a natural-looking panorama even for large rotations.
-        <br>
-        Implemented in:
-        <ul>
-          <li><code>project_points_to_cylindrical()</code>: projects matched feature points from the original image plane into the cylindrical space.</li>
-          <li><code>cylindrical_warp_image()</code>: remaps each image pixel using <code>cv2.remap</code> for efficient inverse warping.</li>
-        </ul>
-      </li>
-    
-      <li>
-        <strong>Homography Re-Estimation on Cylindrical Domain:</strong>  
-        After projection, all corresponding points (previously stored in JSON files) are converted to cylindrical coordinates.  
-        The new homographies are then recomputed using <code>computeH()</code> on these projected points, ensuring geometric consistency on the curved surface.
-      </li>
-    
-      <li>
-        <strong>Multi-Image Blending:</strong>  
-        Once warped, the images are merged using the same blending pipeline introduced in A.4 —  
-        <code>warp_with_alpha_smooth()</code> for soft feathered alpha masks and <code>blend_images_laplacian()</code> for smooth exposure transitions.  
-        The composition order (<em>left → reference → right</em>) and alpha update formula remain unchanged, handled by <code>create_multi_image_mosaic()</code>.
-      </li>
-    
-      <li>
-        <strong>Focal Length Variation:</strong>  
-        The effective focal length <code>f</code> determines the curvature of the cylindrical projection.  
-        Smaller <code>f</code> values yield stronger curvature (wider field of view but more compression),  
-        while larger <code>f</code> values approximate a planar projection.  
-        To visualize this effect, I generated mosaics using three focal scales:
-        <ul>
-          <li><code>focal_scale = 1.0</code> → strong curvature</li>
-          <li><code>focal_scale = 1.3</code> → balanced projection</li>
-          <li><code>focal_scale = 1.5</code> → nearly planar</li>
-        </ul>
-        Each case uses the same <code>test_multi_mosaic_cylindrical()</code> function, which handles projection, homography computation, and blending automatically.
-      </li>
-    </ol>
-    
 
-    
-    <p>
-      Cylindrical projection effectively preserves scene geometry in wide-angle mosaics,  
-      minimizing vertical distortion and preventing the “bowing” artifacts typical of planar projections.  
-      As the focal length increases, the panorama gradually transitions back toward the planar case.
-    </p>
-    
-    <!-- Cylindrical Results -->
-    <figure class="center">
-      <a href="media/A5_3_1.0.png" target="_blank">
-        <img src="media/A5_3_1.0.png" alt="Cylindrical mosaic f=1.0" style="max-width:900px; border-radius:8px;">
-      </a>
-      <figcaption>Mosaic using cylindrical projection (focal scale = 1.0).</figcaption>
-    </figure>
-    
-    <figure class="center">
-      <a href="media/A5_3_1.3.png" target="_blank">
-        <img src="media/A5_3_1.3.png" alt="Cylindrical mosaic f=1.3" style="max-width:900px; border-radius:8px;">
-      </a>
-      <figcaption>Mosaic using cylindrical projection (focal scale = 1.3).</figcaption>
-    </figure>
-    
-    <figure class="center">
-      <a href="media/A5_3_1.5.png" target="_blank">
-        <img src="media/A5_3_1.5.png" alt="Cylindrical mosaic f=1.5" style="max-width:900px; border-radius:8px;">
-      </a>
-      <figcaption>Mosaic using cylindrical projection (focal scale = 1.5).</figcaption>
-    </figure>
 
+        <a href="#" class="lightbox" id="A4_1_smooth">
+          <img src="media/A4_1_smooth.png" alt="Manual mosaic example 1 enlarged">
+        </a>
+        <a href="#" class="lightbox" id="B4_1">
+          <img src="media/B4_1.png" alt="Automatic mosaic example 1 enlarged">
+        </a>
+        
+        <!-- Example 2 -->
+        <div class="grid-2">
+          <figure>
+            <a href="#A4_2_smooth"><img src="media/A4_2_smooth.png"></a>
+            <figcaption>Manual mosaic </figcaption>
+          </figure>
+          <figure>
+            <a href="#B4_2"><img src="media/B4_2.png"></a>
+            <figcaption>Auto mosaic </figcaption>
+          </figure>
+        </div>
+        <a href="#" class="lightbox" id="A4_2_smooth">
+          <img src="media/A4_2_smooth.png" alt="Manual mosaic example 2 enlarged">
+        </a>
+        <a href="#" class="lightbox" id="B4_2">
+          <img src="media/B4_2.png" alt="Automatic mosaic example 2 enlarged">
+        </a>
+        
+        <!-- Example 3 -->
+        <div class="grid-2">
+          <figure>
+            <a href="#A4_3_smooth"><img src="media/A4_3_smooth.png"></a>
+            <figcaption>Manual mosaic </figcaption>
+          </figure>
+          <figure>
+            <a href="#B4_3"><img src="media/B4_3.png"></a>
+            <figcaption>Auto mosaic </figcaption>
+          </figure>
+        </div>
+        <a href="#" class="lightbox" id="A4_3_smooth">
+          <img src="media/A4_3_smooth.png" alt="Manual mosaic example 3 enlarged">
+        </a>
+        <a href="#" class="lightbox" id="B4_3">
+          <img src="media/B4_3.png" alt="Automatic mosaic example 3 enlarged">
+        </a>
+        
+        
+                        
+        <!--   B.5  -->
+        
+        <div class="subhead" id="b5">B.5 Bells & Whistles — Multiscale Processing</div>
+        
+        <p>
+          In the previous sections, both Harris corner detection and descriptor extraction were performed at a single image scale. 
+          A single fixed scale may either miss small features or produce poorly localized keypoints on large structures.
+        </p>
+        
+        <p>
+          To address this, I implemented <strong>multiscale processing</strong> for both keypoint detection and feature description.
+          This approach improves keypoint coverage, matching stability, and overall mosaic quality, especially for scenes with significant scale variation.
+        </p>
+        
+        <h4>Method Overview</h4>
+        
+        <ul>
+          <li>
+            <strong>1. Multiscale Harris Corner Detection</strong>  
+            I defined a set of scales <code>[1.0, 0.5, 0.25]</code>. For each scale, 
+            the image is resized accordingly and Harris corner detection is applied.
+            Top corners (by response strength) are selected at each scale and mapped back to the original image coordinates.
+            Finally, <strong>Adaptive Non-Maximal Suppression (ANMS)</strong> is applied across all scales to keep the most spatially diverse and informative keypoints.  
+            This is implemented in <code>get_multiscale_corners_with_scales()</code>.
+          </li>
+        
+          <li>
+            <strong>2. Scale-Aware Feature Descriptor Extraction</strong>  
+            In <code>get_features_multiscale()</code>, each keypoint is described at the scale where it was detected. 
+            Specifically, a <code>40×40</code> patch is sampled around the keypoint on the scaled image, 
+            Gaussian blurred, and then downsampled to <code>8×8</code> to form a normalized descriptor.
+            This ensures that both small and large features are represented at their appropriate resolution,
+            improving matching precision across scales.
+          </li>
+        
+          <li>
+            <strong>3. Matching & RANSAC Mosaic</strong>  
+            After multiscale keypoints and descriptors are obtained, the same feature matching pipeline 
+            (Lowe’s ratio test + 4-point RANSAC) is applied to estimate homographies between images.
+            The resulting mosaics are blended using the same alpha blending and Laplacian pyramid blending as in Part A.
+          </li>
+        </ul>
+        
+        <p>
+          The visualization below shows the detected Harris corners across scales. Different colors indicate different detection scales.
+        </p>
+        
+        
+        <figure class="center">
+          <a href="#B5_1">
+            <img src="media/B5_1.png" alt="Multiscale Harris corners visualization" style="max-width:900px; border-radius:8px;">
+          </a>
+          <figcaption>
+            Multiscale Harris corners after ANMS. Different colors correspond to different detection scales.
+          </figcaption>
+        </figure>
+        <a href="#" class="lightbox" id="B5_1">
+          <img src="media/B5_1.png" alt="Multiscale Harris corners enlarged">
+        </a>
+        
+        <p>
+          Compared to the single-scale approach used in B.1–B.4, 
+          this multiscale method improves both the <strong>quantity</strong> and <strong>quality</strong> of feature correspondences, 
+          particularly in challenging wide-angle or high-texture scenes.
+        </p>
+        
+        <h4>Mosaic Results</h4>
+        <p>
+          Below are three automatic mosaics generated using multiscale keypoints and descriptors, 
+          compared against the previous single-scale mosaics from B.4.  
+          Notice that the <strong>ghosting and misalignment</strong> seen in earlier results are significantly reduced, 
+          especially in the first and second examples, where large and small features coexist in the scene.
+        </p>
+        
+        <!-- Example 1 -->
+        <div class="grid-2">
+          <figure>
+            <a href="#B4_1"><img src="media/B4_1.png"></a>
+            <figcaption>Single scale </figcaption>
+          </figure>
+          <figure>
+            <a href="#B5_mosaic1"><img src="media/B5_mosaic1.png"></a>
+            <figcaption>Multiscale </figcaption>
+          </figure>
+        </div>
+        <a href="#" class="lightbox" id="B4_1">
+          <img src="media/B4_1.png" alt="Single scale mosaic 1 enlarged">
+        </a>
+        <a href="#" class="lightbox" id="B5_mosaic1">
+          <img src="media/B5_mosaic1.png" alt="Multiscale mosaic 1 enlarged">
+        </a>
+        
+        <!-- Example 2 -->
+        <div class="grid-2">
+          <figure>
+            <a href="#B4_2"><img src="media/B4_2.png"></a>
+            <figcaption>Single scale </figcaption>
+          </figure>
+          <figure>
+            <a href="#B5_mosaic2"><img src="media/B5_mosaic2.png"></a>
+            <figcaption>Multiscale </figcaption>
+          </figure>
+        </div>
+        <a href="#" class="lightbox" id="B4_2">
+          <img src="media/B4_2.png" alt="Single scale mosaic 2 enlarged">
+        </a>
+        <a href="#" class="lightbox" id="B5_mosaic2">
+          <img src="media/B5_mosaic2.png" alt="Multiscale mosaic 2 enlarged">
+        </a>
+        
+        <!-- Example 3 -->
+        <div class="grid-2">
+          <figure>
+            <a href="#B4_3"><img src="media/B4_3.png"></a>
+            <figcaption>Single scale </figcaption>
+          </figure>
+          <figure>
+            <a href="#B5_mosaic3"><img src="media/B5_mosaic3.png"></a>
+            <figcaption>Multiscale </figcaption>
+          </figure>
+        </div>
+        <a href="#" class="lightbox" id="B4_3">
+          <img src="media/B4_3.png" alt="Single scale mosaic 3 enlarged">
+        </a>
+        <a href="#" class="lightbox" id="B5_mosaic3">
+          <img src="media/B5_mosaic3.png" alt="Multiscale mosaic 3 enlarged">
+        </a>
+        
+        <h4>Analysis</h4>
+        <p>
+          The multiscale pipeline improves mosaic quality by:
+        </p>
+        
+        <ul>
+          <li>Capturing both coarse and fine image structures through multiple scale levels</li>
+          <li>Improving feature localization at the appropriate scale of each structure</li>
+          <li>Providing more reliable matches for RANSAC, resulting in better homography estimation</li>
+        </ul>
+        
+        <p>
+          Overall, multiscale feature processing leads to more stable and visually pleasing panoramas, 
+          especially in real-world outdoor images with rich structure at multiple scales.
+        </p>
+
+
+        
     </section>
 
-    <p class="footer">This page documents only Part A (A.1–A.5) of Project 3. It is responsive and print-friendly.</p>
+    <p class="footer">This page is responsive and print-friendly.</p>
+
+
+      
   </div>
+
+
+
 </body>
 </html>
+
