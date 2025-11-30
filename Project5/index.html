@@ -1,0 +1,1695 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CS280A Project #5 — Fun With Diffusion Models!</title>
+
+  <link rel="stylesheet" href="../shared.css">
+  <link rel="stylesheet" href="./project5.css">
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <h1>CS280A Project5 — Fun With Diffusion Models!</h1>
+      <div class="meta">Name: <strong>Xi Cheng</strong> · Date: <strong>2025-11-29</strong></div>
+    </header>
+
+    <!-- ========================== -->
+    <!--      TABLE OF CONTENTS     -->
+    <!-- ========================== -->
+    <nav class="toc">
+      <h2>Table of Contents</h2>
+      <ul>
+        <!-- ===================== -->
+        <!--      PART A (DMs)     -->
+        <!-- ===================== -->
+        <li>
+          <a href="#partA">Part A: The Power of Diffusion Models!</a>
+          <ul>
+            <li><a href="#part0">Part 0: Setup</a></li>
+
+            <li>
+              <a href="#part1">Part 1: Sampling Loops</a>
+              <ul>
+                <li><a href="#p11">1.1 Implementing the Forward Process</a></li>
+                <li><a href="#p12">1.2 Classical Denoising</a></li>
+                <li><a href="#p13">1.3 One-Step Denoising</a></li>
+                <li><a href="#p14">1.4 Iterative Denoising</a></li>
+                <li><a href="#p15">1.5 Diffusion Model Sampling</a></li>
+                <li><a href="#p16">1.6 Classifier-Free Guidance (CFG)</a></li>
+                <li><a href="#p17">1.7 Image-to-image Translation</a>
+                  <ul>
+                    <li><a href="#p171">1.7.1 Editing Hand-Drawn and Web Images</a></li>
+                    <li><a href="#p172">1.7.2 Inpainting</a></li>
+                    <li><a href="#p173">1.7.3 Text-Conditional Image-to-image Translation</a></li>
+                  </ul>
+                </li>
+                <li><a href="#p18">1.8 Visual Anagrams</a></li>
+                <li><a href="#p19">1.9 Hybrid Images</a></li>
+              </ul>
+            </li>
+
+            <li><a href="#part2">Part 2: Bells & Whistles</a></li>
+          </ul>
+        </li>
+
+        <!-- ===================== -->
+        <!--      PART B (FM)      -->
+        <!-- ===================== -->
+        <li>
+          <a href="#partB">Part B: Flow Matching from Scratch!</a>
+          <ul>
+            <li>
+              <a href="#partB1">Part 1: Training a Single-Step Denoising UNet</a>
+              <ul>
+                <li><a href="#pB11">1.1 Implementing the UNet</a></li>
+                <li><a href="#pB12">1.2 Using the UNet to Train a Denoiser</a>
+                  <ul>
+                    <li><a href="#pB121">1.2.1 Training</a></li>
+                    <li><a href="#pB122">1.2.2 Out-of-Distribution Testing</a></li>
+                    <li><a href="#pB123">1.2.3 Denoising Pure Noise</a></li>
+                  </ul>
+                </li>
+              </ul>
+            </li>
+
+            <li>
+              <a href="#partB2">Part 2: Training a Flow Matching Model</a>
+              <ul>
+                <li><a href="#pB21">2.1 Adding Time Conditioning to UNet</a></li>
+                <li><a href="#pB22">2.2 Training the UNet</a></li>
+                <li><a href="#pB23">2.3 Sampling from the UNet</a></li>
+                <li><a href="#pB24">2.4 Adding Class-Conditioning to UNet</a></li>
+                <li><a href="#pB25">2.5 Training the UNet</a></li>
+                <li><a href="#pB26">2.6 Sampling from the UNet</a></li>
+              </ul>
+            </li>
+
+            <li><a href="#partB3">Part 3: Bells & Whistles</a></li>
+          </ul>
+        </li>
+      </ul>
+    </nav>
+
+    <!-- ========================== -->
+    <!--        PART A START        -->
+    <!-- ========================== -->
+    <section class="part" id="partA">
+      <h2>Part A: The Power of Diffusion Models!</h2>
+      <p class="lead">
+        In this part, I explore classic diffusion-model sampling, from the forward noising process to
+        iterative denoising, classifier-free guidance, and image-to-image translation. I also experiment
+        with fun visual illusions such as visual anagrams and hybrid images.
+      </p>
+    </section>
+
+    <!-- ========================== -->
+    <!--         PART 0 SETUP       -->
+    <!-- ========================== -->
+    <section class="part" id="part0">
+      <h3>Part 0: Setup</h3>
+      <p class="lead">
+        In this part I set up the DeepFloyd IF pipeline and generate my own text-prompt
+        embeddings. I then use these embeddings to sample images with different numbers
+        of denoising steps, which I will reuse in the later parts of the project.
+      </p>
+
+      <h4>DeepFloyd IF Setup</h4>
+      <p>
+        I use the two–stage DeepFloyd IF model:
+        <code>DeepFloyd/IF-I-L-v1.0</code> as stage&nbsp;I (64&times;64) and
+        <code>DeepFloyd/IF-II-L-v1.0</code> as stage&nbsp;II (256&times;256),
+        both loaded in <code>fp16</code> on GPU via the Hugging Face
+        <code>DiffusionPipeline</code>. The text encoder is run offline on a
+        Hugging Face cluster to create a dictionary of prompt embeddings, which I
+        save as <code>prompt_embeds_dict.pth</code> and load in Colab.
+      </p>
+
+      <p>
+        I fix the random seed to <code>1017</code> so that all subsequent experiments
+        in the project are reproducible.
+      </p>
+
+      <h4>Prompts and Sampling Settings</h4>
+      <p>
+        From my custom embedding dictionary I select three prompts:
+      </p>
+      <ul>
+        <li><strong>P0:</strong> “a butterfly whose wings are city maps, neon circuits”</li>
+        <li><strong>P1:</strong> “a glass tiger filled with swirling galaxy dust”</li>
+        <li><strong>P2:</strong> “a violin made of ocean waves, sea-foam strings”</li>
+      </ul>
+      <p>
+        For each prompt I sample with <code>num_inference_steps = 20</code> and
+        <code>80</code>, and pass the samples through both stage&nbsp;I
+        (64&times;64) and stage&nbsp;II (256&times;256). The images below are
+        saved under <code>media/PartA/part0/</code>.
+        Click any image to view the full-resolution PNG.
+      </p>
+
+      <h4>Generated Samples </h4>
+
+      <!-- ============================ -->
+      <!--   ROW 1 — Stage 1, 20 steps  -->
+      <!-- ============================ -->
+      <h5>Stage 1 (64×64) — 20 steps</h5>
+      <div class="figure grid-3">
+        <figure>
+          <a href="media/PartA/part0/idx0_stage1_steps20_prompt0.png" target="_blank">
+            <img src="media/PartA/part0/idx0_stage1_steps20_prompt0.png">
+          </a>
+          <figcaption>P0</figcaption>
+        </figure>
+
+        <figure>
+          <a href="media/PartA/part0/idx1_stage1_steps20_prompt1.png" target="_blank">
+            <img src="media/PartA/part0/idx1_stage1_steps20_prompt1.png">
+          </a>
+          <figcaption>P1</figcaption>
+        </figure>
+
+        <figure>
+          <a href="media/PartA/part0/idx2_stage1_steps20_prompt2.png" target="_blank">
+            <img src="media/PartA/part0/idx2_stage1_steps20_prompt2.png">
+          </a>
+          <figcaption>P2</figcaption>
+        </figure>
+      </div>
+
+      <!-- ============================ -->
+      <!--   ROW 2 — Stage 2, 20 steps  -->
+      <!-- ============================ -->
+      <h5>Stage 2 (256×256) — 20 steps</h5>
+      <div class="figure grid-3">
+        <figure>
+          <a href="media/PartA/part0/idx0_stage2_steps20_prompt0.png" target="_blank">
+            <img src="media/PartA/part0/idx0_stage2_steps20_prompt0.png">
+          </a>
+          <figcaption>P0</figcaption>
+        </figure>
+
+        <figure>
+          <a href="media/PartA/part0/idx1_stage2_steps20_prompt1.png" target="_blank">
+            <img src="media/PartA/part0/idx1_stage2_steps20_prompt1.png">
+          </a>
+          <figcaption>P1</figcaption>
+        </figure>
+
+        <figure>
+          <a href="media/PartA/part0/idx2_stage2_steps20_prompt2.png" target="_blank">
+            <img src="media/PartA/part0/idx2_stage2_steps20_prompt2.png">
+          </a>
+          <figcaption>P2</figcaption>
+        </figure>
+      </div>
+
+      <!-- ============================ -->
+      <!--   ROW 3 — Stage 1, 80 steps  -->
+      <!-- ============================ -->
+      <h5>Stage 1 (64×64) — 80 steps</h5>
+      <div class="figure grid-3">
+        <figure>
+          <a href="media/PartA/part0/idx0_stage1_steps80_prompt0.png" target="_blank">
+            <img src="media/PartA/part0/idx0_stage1_steps80_prompt0.png">
+          </a>
+          <figcaption>P0</figcaption>
+        </figure>
+
+        <figure>
+          <a href="media/PartA/part0/idx1_stage1_steps80_prompt1.png" target="_blank">
+            <img src="media/PartA/part0/idx1_stage1_steps80_prompt1.png">
+          </a>
+          <figcaption>P1</figcaption>
+        </figure>
+
+        <figure>
+          <a href="media/PartA/part0/idx2_stage1_steps80_prompt2.png" target="_blank">
+            <img src="media/PartA/part0/idx2_stage1_steps80_prompt2.png">
+          </a>
+          <figcaption>P2</figcaption>
+        </figure>
+      </div>
+
+      <!-- ============================ -->
+      <!--   ROW 4 — Stage 2, 80 steps  -->
+      <!-- ============================ -->
+      <h5>Stage 2 (256×256) — 80 steps</h5>
+      <div class="figure grid-3">
+        <figure>
+          <a href="media/PartA/part0/idx0_stage2_steps80_prompt0.png" target="_blank">
+            <img src="media/PartA/part0/idx0_stage2_steps80_prompt0.png">
+          </a>
+          <figcaption>P0</figcaption>
+        </figure>
+
+        <figure>
+          <a href="media/PartA/part0/idx1_stage2_steps80_prompt1.png" target="_blank">
+            <img src="media/PartA/part0/idx1_stage2_steps80_prompt1.png">
+          </a>
+          <figcaption>P1</figcaption>
+        </figure>
+
+        <figure>
+          <a href="media/PartA/part0/idx2_stage2_steps80_prompt2.png" target="_blank">
+            <img src="media/PartA/part0/idx2_stage2_steps80_prompt2.png">
+          </a>
+          <figcaption>P2</figcaption>
+        </figure>
+      </div>
+
+
+      <h4>Observations</h4>
+      <p>
+        With only 20 denoising steps the samples already capture the coarse layout and colors
+        of the prompts, but they contain visible noise and artifacts, especially in stage&nbsp;I.
+        Increasing to 80 steps refines the structure substantially and produces sharper,
+        more coherent details in stage&nbsp;II. These 12 images (across 3 prompts, 2 stages,
+        and 2 step counts) will be reused in later parts for image-to-image translation,
+        visual anagrams, and hybrid images.
+      </p>
+    </section>
+
+
+    <!-- ========================== -->
+    <!--     PART 1 SAMPLING LOOPS  -->
+    <!-- ========================== -->
+    <section class="part" id="part1">
+      <h3>Part 1: Sampling Loops</h3>
+      <p class="lead">
+        In this section, I implement and visualize the core components of diffusion-model sampling,
+        gradually moving from simple classical denoising to full DDPM-style sampling and CFG.
+      </p>
+
+      <h4 id="p11">1.1 Implementing the Forward Process</h4>
+      <p>
+        I implement the forward diffusion process in the
+        function <code>forward(im, t)</code>. Given a clean image
+        <code>im</code> of shape <code>(1, 3, 64, 64)</code> and a timestep
+        <code>t</code>, I obtain the scalar noise schedule value
+        <code>alpha_bar = alphas_cumprod[t]</code>, sample Gaussian noise
+        <code>eps ~ N(0, I)</code> with <code>torch.randn_like(im)</code>, and
+        form the noisy image as:
+        <code>im_noisy = alpha_bar.sqrt() * im + (1 - alpha_bar).sqrt() * eps</code>.
+        This exactly matches the forward process defined in the writeup.
+      </p>
+
+      <p>
+        To visualize the effect of increasing noise, I run the forward process
+        on the Campanile image for timesteps
+        <code>t ∈ {250, 500, 750}</code>. The clean image and the three noisy
+        outputs are saved in
+        <code>media/PartA/part1/1/</code> and shown below. Click any image to
+        open the full-resolution version.
+      </p>
+
+      <div class="figure grid-4">
+        <figure>
+          <a href="media/PartA/part1/1/campanile.png" target="_blank">
+            <img src="media/PartA/part1/1/campanile.png"
+                 alt="Clean Campanile image (t=0)">
+          </a>
+          <figcaption>t = 0 (clean image)</figcaption>
+        </figure>
+
+        <figure>
+          <a href="media/PartA/part1/1/noisy_t250.png" target="_blank">
+            <img src="media/PartA/part1/1/noisy_t250.png"
+                 alt="Noisy Campanile image at t=250">
+          </a>
+          <figcaption>t = 250</figcaption>
+        </figure>
+
+        <figure>
+          <a href="media/PartA/part1/1/noisy_t500.png" target="_blank">
+            <img src="media/PartA/part1/1/noisy_t500.png"
+                 alt="Noisy Campanile image at t=500">
+          </a>
+          <figcaption>t = 500</figcaption>
+        </figure>
+
+        <figure>
+          <a href="media/PartA/part1/1/noisy_t750.png" target="_blank">
+            <img src="media/PartA/part1/1/noisy_t750.png"
+                 alt="Noisy Campanile image at t=750">
+          </a>
+          <figcaption>t = 750</figcaption>
+        </figure>
+      </div>
+
+      <p>
+        As the timestep increases, alpha decreases toward zero,
+        so the contribution from the clean image diminishes while the Gaussian
+        noise term dominates. Visually, this produces progressively more
+        corrupted versions of the Campanile image, matching the intuition of
+        the forward diffusion process.
+      </p>
+
+
+
+        <h4 id="p12">1.2 Classical Denoising</h4>
+        <p>
+          I apply classical Gaussian blur filtering to the noisy Campanile images generated in Part 1.1.
+          For each noise level (<code>t = 250, 500, 750</code>), I show the original noisy image and the
+          corresponding Gaussian-denoised version side-by-side below.
+          As expected, Gaussian blur reduces some high-frequency noise but also destroys important details,
+          illustrating the limitations of classical denoising for diffusion-style corruptions.
+        </p>
+        
+        <h5>Noisy Images </h5>
+        <div class="figure grid-3">
+          <figure>
+            <a href="media/PartA/part1/1/noisy_t250.png" target="_blank">
+              <img src="media/PartA/part1/1/noisy_t250.png" alt="Noisy t=250">
+            </a>
+            <figcaption>Noisy Campanile at t=250</figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/1/noisy_t500.png" target="_blank">
+              <img src="media/PartA/part1/1/noisy_t500.png" alt="Noisy t=500">
+            </a>
+            <figcaption>Noisy Campanile at t=500</figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/1/noisy_t750.png" target="_blank">
+              <img src="media/PartA/part1/1/noisy_t750.png" alt="Noisy t=750">
+            </a>
+            <figcaption>Noisy Campanile at t=750</figcaption>
+          </figure>
+        </div>
+        
+        <h5>Gaussian Blur Denoising </h5>
+        <div class="figure grid-3">
+          <figure>
+            <a href="media/PartA/part1/2/denoised_t250.png" target="_blank">
+              <img src="media/PartA/part1/2/denoised_t250.png" alt="Denoised t=250">
+            </a>
+            <figcaption>Gaussian Blur Denoising at t=250</figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/2/denoised_t500.png" target="_blank">
+              <img src="media/PartA/part1/2/denoised_t500.png" alt="Denoised t=500">
+            </a>
+            <figcaption>Gaussian Blur Denoising at t=500</figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/2/denoised_t750.png" target="_blank">
+              <img src="media/PartA/part1/2/denoised_t750.png" alt="Denoised t=750">
+            </a>
+            <figcaption>Gaussian Blur Denoising at t=750</figcaption>
+          </figure>
+        </div>
+        
+        <p>
+          As the noise becomes more severe (larger <code>t</code>), Gaussian filtering struggles:
+          although it suppresses some pixel-level noise, it also heavily blurs the structure of the Campanile.
+          This demonstrates why learned denoisers such as those used in diffusion models are essential
+          for high-quality image reconstruction.
+        </p>
+
+
+        <h4 id="p13">1.3 One-Step Denoising</h4>
+        <p>
+          Here I use the pretrained DeepFloyd stage&nbsp;I UNet as a one-step denoiser.
+          For each timestep <code>t ∈ {250, 500, 750}</code>, I first apply the forward
+          process to obtain a noisy image <code>x_t</code>, then pass it through
+          <code>stage_1.unet</code> (conditioned on the prompt
+          <code>"a high quality photo"</code>) to estimate the noise. Using equation A.2,
+          I remove the scaled noise and recover an estimate of the clean image
+          <code>\hat{x}_0</code>. The top row below shows the noisy inputs, and the
+          bottom row shows the corresponding UNet reconstructions. Click any image to
+          view it at full resolution.
+        </p>
+        
+        <h5>Noisy Inputs to UNet (Top Row)</h5>
+        <div class="figure grid-3">
+          <figure>
+            <a href="media/PartA/part1/1/noisy_t250.png" target="_blank">
+              <img src="media/PartA/part1/1/noisy_t250.png" alt="Noisy xt, t=250">
+            </a>
+            <figcaption>Noisy Campanile at t=250</figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/1/noisy_t500.png" target="_blank">
+              <img src="media/PartA/part1/1/noisy_t500.png" alt="Noisy xt, t=500">
+            </a>
+            <figcaption>Noisy Campanile at t=500</figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/1/noisy_t750.png" target="_blank">
+              <img src="media/PartA/part1/1/noisy_t750.png" alt="Noisy xt, t=750">
+            </a>
+            <figcaption>Noisy Campanile at t=750</figcaption>
+          </figure>
+        </div>
+        
+        <h5>UNet One-Step Reconstructions (Bottom Row)</h5>
+        <div class="figure grid-3">
+          <figure>
+            <a href="media/PartA/part1/3/reconstructed_t250.png" target="_blank">
+              <img src="media/PartA/part1/3/reconstructed_t250.png" alt="Reconstructed x0_hat, t=250">
+            </a>
+            <figcaption>UNet Reconstruction at t=250</figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/3/reconstructed_t500.png" target="_blank">
+              <img src="media/PartA/part1/3/reconstructed_t500.png" alt="Reconstructed x0_hat, t=500">
+            </a>
+            <figcaption>UNet Reconstruction at t=500</figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/3/reconstructed_t750.png" target="_blank">
+              <img src="media/PartA/part1/3/reconstructed_t750.png" alt="Reconstructed x0_hat, t=750">
+            </a>
+            <figcaption>UNet Reconstruction at t=750</figcaption>
+          </figure>
+        </div>
+        
+        <p>
+          Compared to the classical Gaussian-blur results, the one-step UNet denoiser
+          recovers much sharper edges and more realistic textures, especially at
+          <code>t = 250</code>. As the noise level increases to <code>t = 750</code>,
+          the reconstructions become blurrier and less faithful, but they still preserve
+          global structure better than simple Gaussian filtering.
+        </p>
+
+        <h4 id="p14">1.4 Iterative Denoising</h4>
+        <p>
+          Using the strided timestep schedule
+          <code>strided_timesteps = [990, 960, …, 0]</code> with <code>i_start = 10</code>,
+          I start from a moderately noisy Campanile image and iteratively denoise it with the
+          DeepFloyd stage&nbsp;I UNet. Below I show the noisy image every fifth denoising step,
+          followed by a comparison of the final iterative result with one-step denoising and
+          Gaussian blur.
+        </p>
+        
+        <h5>Noisy Campanile During Iterative Denoising (Every 5th Step)</h5>
+        <div class="figure grid-5">
+          <figure>
+            <a href="media/PartA/part1/4/noisy_t90.png" target="_blank">
+              <img src="media/PartA/part1/4/noisy_t90.png" alt="Noisy t=90">
+            </a>
+            <figcaption>t = 90</figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/4/noisy_t240.png" target="_blank">
+              <img src="media/PartA/part1/4/noisy_t240.png" alt="Noisy t=240">
+            </a>
+            <figcaption>t = 240</figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/4/noisy_t390.png" target="_blank">
+              <img src="media/PartA/part1/4/noisy_t390.png" alt="Noisy t=390">
+            </a>
+            <figcaption>t = 390</figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/4/noisy_t540.png" target="_blank">
+              <img src="media/PartA/part1/4/noisy_t540.png" alt="Noisy t=540">
+            </a>
+            <figcaption>t = 540</figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/4/noisy_t690.png" target="_blank">
+              <img src="media/PartA/part1/4/noisy_t690.png" alt="Noisy t=690">
+            </a>
+            <figcaption>t = 690</figcaption>
+          </figure>
+        </div>
+        
+        <h5>Final Reconstructions: Iterative vs One-Step vs Gaussian Blur</h5>
+        <div class="figure grid-4">
+          <figure>
+            <a href="media/PartA/part1/4/original.png" target="_blank">
+              <img src="media/PartA/part1/4/original.png" alt="Original clean image">
+            </a>
+            <figcaption>Original</figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/4/iterative_denoised.png" target="_blank">
+              <img src="media/PartA/part1/4/iterative_denoised.png" alt="Iterative denoising result">
+            </a>
+            <figcaption>Iteratively Denoised</figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/4/one_step_denoised.png" target="_blank">
+              <img src="media/PartA/part1/4/one_step_denoised.png" alt="One-step denoising result">
+            </a>
+            <figcaption>One-Step Denoised</figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/4/gaussian_blurred.png" target="_blank">
+              <img src="media/PartA/part1/4/gaussian_blurred.png" alt="Gaussian blur result">
+            </a>
+            <figcaption>Gaussian Blurred</figcaption>
+          </figure>
+        </div>
+        
+        <p>
+          The five noisy snapshots show the image gradually becoming less noisy as the
+          algorithm marches from large timesteps toward 0. The final iterative result
+          is noticeably sharper and more faithful than both the one-step denoiser and
+          the Gaussian-blurred baseline, especially in the tower edges and sky texture.
+        </p>
+
+
+        <h4 id="p15">1.5 Diffusion Model Sampling</h4>
+        <p>
+          Here I sample images directly from the DeepFloyd stage&nbsp;I diffusion model.
+          I start from pure Gaussian noise of shape <code>(1, 3, 64, 64)</code>,
+          then run <code>iterative_denoise</code> with <code>i_start = 0</code> using
+          the prompt embedding <code>"a high quality photo"</code>.
+          The five results below are generated from independent noise seeds.
+          Click any image to view it at full resolution.
+        </p>
+        
+        <div class="figure grid-5">
+          <figure>
+            <a href="media/PartA/part1/5/generated_0.png" target="_blank">
+              <img src="media/PartA/part1/5/generated_0.png" alt="Generated sample 0">
+            </a>
+            <figcaption>Sample 1</figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/5/generated_1.png" target="_blank">
+              <img src="media/PartA/part1/5/generated_1.png" alt="Generated sample 1">
+            </a>
+            <figcaption>Sample 2</figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/5/generated_2.png" target="_blank">
+              <img src="media/PartA/part1/5/generated_2.png" alt="Generated sample 2">
+            </a>
+            <figcaption>Sample 3</figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/5/generated_3.png" target="_blank">
+              <img src="media/PartA/part1/5/generated_3.png" alt="Generated sample 3">
+            </a>
+            <figcaption>Sample 4</figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/5/generated_4.png" target="_blank">
+              <img src="media/PartA/part1/5/generated_4.png" alt="Generated sample 4">
+            </a>
+            <figcaption>Sample 5</figcaption>
+          </figure>
+        </div>
+
+
+        <h4 id="p16">1.6 Classifier-Free Guidance (CFG)</h4>
+        <p>
+          Here I extend the iterative denoising sampler with classifier-free guidance.
+          For each diffusion step, I run the UNet twice: once with the conditional
+          prompt embedding <code>"a high quality photo"</code> and once with the null
+          prompt <code>""</code>. I then combine the two noise estimates via
+          <code>ε = ε<sub>u</sub> + γ (ε<sub>c</sub> − ε<sub>u</sub>)</code> with
+          CFG scale <code>γ = 7</code>, and use the conditional variance in
+          <code>add_variance</code>. Starting from pure Gaussian noise
+          (<code>i_start = 0</code>), this produces much sharper and more coherent images
+          than the unguided sampler in Part&nbsp;1.5. Five independent samples are shown below.
+        </p>
+        
+        <div class="figure grid-5">
+          <figure>
+            <a href="media/PartA/part1/6/cfg_generated_0.png" target="_blank">
+              <img src="media/PartA/part1/6/cfg_generated_0.png" alt="CFG sample 0">
+            </a>
+            <figcaption>Sample 1 with CFG</figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/6/cfg_generated_1.png" target="_blank">
+              <img src="media/PartA/part1/6/cfg_generated_1.png" alt="CFG sample 1">
+            </a>
+            <figcaption>Sample 2 with CFG</figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/6/cfg_generated_2.png" target="_blank">
+              <img src="media/PartA/part1/6/cfg_generated_2.png" alt="CFG sample 2">
+            </a>
+            <figcaption>Sample 3 with CFG</figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/6/cfg_generated_3.png" target="_blank">
+              <img src="media/PartA/part1/6/cfg_generated_3.png" alt="CFG sample 3">
+            </a>
+            <figcaption>Sample 4 with CFG</figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/6/cfg_generated_4.png" target="_blank">
+              <img src="media/PartA/part1/6/cfg_generated_4.png" alt="CFG sample 4">
+            </a>
+            <figcaption>Sample 5 with CFG</figcaption>
+          </figure>
+        </div>
+
+        <h4 id="p17">1.7 Image-to-image Translation</h4>
+        <p>
+          For image-to-image translation, I apply SDEdit using CFG with scale γ = 7.
+          Each row below shows the complete edit progression for one input image.
+        </p>
+        
+        <!-- ==================== Row 1: Campanile ==================== -->
+        <div class="figure grid-1">
+          <figure>
+            <a href="media/PartA/part1/7/Campanile_edits.png" target="_blank">
+              <img src="media/PartA/part1/7/Campanile_edits.png"
+                   alt="Campanile edits" style="width:100%;max-width:1100px;">
+            </a>
+            <figcaption>
+             
+            </figcaption>
+          </figure>
+        </div>
+        
+        <!-- ==================== Row 2: Cat ==================== -->
+        <div class="figure grid-1">
+          <figure>
+            <a href="media/PartA/part1/7/cat_edits.png" target="_blank">
+              <img src="media/PartA/part1/7/cat_edits.png"
+                   alt="Cat edits" style="width:100%;max-width:1100px;">
+            </a>
+            <figcaption>
+              
+            </figcaption>
+          </figure>
+        </div>
+        
+        <!-- ==================== Row 3: Dog ==================== -->
+        <div class="figure grid-1">
+          <figure>
+            <a href="media/PartA/part1/7/dog_edits.png" target="_blank">
+              <img src="media/PartA/part1/7/dog_edits.png"
+                   alt="Dog edits" style="width:100%;max-width:1100px;">
+            </a>
+            <figcaption>
+              
+            </figcaption>
+          </figure>
+        </div>
+
+
+        <h4 id="p171">1.7.1 Editing Hand-Drawn and Web Images</h4>
+        
+        <p>
+          In this section, I apply SDEdit-style CFG denoising to three non-photographic images:
+          one image downloaded from the web and two hand-drawn images.
+          Each row shows the full sequence of edits produced using noise levels
+          <code>[1, 3, 5, 7, 10, 20]</code>, followed by the original drawing or web image.
+          Click to enlarge each result.
+        </p>
+        
+        <!-- ==================== Row 1: Web image ==================== -->
+        <div class="figure grid-1">
+          <figure>
+            <a href="media/PartA/part1/7/7_1_1.png" target="_blank">
+              <img src="media/PartA/part1/7/7_1_1.png"
+                   alt="Web image edits"
+                   style="width:100%;max-width:1100px;">
+            </a>
+            <figcaption>
+              Web image edits using CFG at noise levels <code>i_start = 1,3,5,7,10,20</code>.
+            </figcaption>
+          </figure>
+        </div>
+        
+        <!-- ==================== Row 2: Hand drawing #1 ==================== -->
+        <div class="figure grid-1">
+          <figure>
+            <a href="media/PartA/part1/7/7_1_2.png" target="_blank">
+              <img src="media/PartA/part1/7/7_1_2.png"
+                   alt="Hand-drawn image 1 edits"
+                   style="width:100%;max-width:1100px;">
+            </a>
+            <figcaption>
+              Hand-drawn image #1 edited across CFG noise levels.
+            </figcaption>
+          </figure>
+        </div>
+        
+        <!-- ==================== Row 3: Hand drawing #2 ==================== -->
+        <div class="figure grid-1">
+          <figure>
+            <a href="media/PartA/part1/7/7_1_3.png" target="_blank">
+              <img src="media/PartA/part1/7/7_1_3.png"
+                   alt="Hand-drawn image 2 edits"
+                   style="width:100%;max-width:1100px;">
+            </a>
+            <figcaption>
+              Hand-drawn image #2 edited across CFG noise levels.
+            </figcaption>
+          </figure>
+        </div>
+
+        <h4 id="p172">1.7.2 Inpainting</h4>
+        
+        <p>
+          I implement DDPM-style inpainting with classifier-free guidance (CFG) by
+          modifying the iterative denoising loop. At each timestep, I predict the
+          conditional and unconditional noise, combine them with CFG
+          (<code>γ = 7</code>), and then apply Equation&nbsp;(A.5):
+          inside the edit mask I keep the model's denoised prediction, while outside
+          the mask I re-noise the original image using <code>forward(original_image, t)</code>.
+          This forces the masked region to be regenerated while preserving the context
+          elsewhere. Below I show inpainting results on the Campanile and two of my
+          own images.
+        </p>
+        
+        <!-- ==================== Row 1: Campanile inpainting ==================== -->
+        <div class="figure grid-1">
+          <figure>
+            <a href="media/PartA/part1/7/inpainting_Campanile_grid.png" target="_blank">
+              <img src="media/PartA/part1/7/inpainting_Campanile_grid.png"
+                   alt="Campanile inpainting grid"
+                   style="width:100%;max-width:1100px;">
+            </a>
+            <figcaption>
+              Inpainting the top of the Campanile using a binary mask and CFG-guided denoising.
+            </figcaption>
+          </figure>
+        </div>
+        
+        <!-- ==================== Row 2: Cat inpainting ==================== -->
+        <div class="figure grid-1">
+          <figure>
+            <a href="media/PartA/part1/7/inpainting_cat_grid.png" target="_blank">
+              <img src="media/PartA/part1/7/inpainting_cat_grid.png"
+                   alt="Cat inpainting grid"
+                   style="width:100%;max-width:1100px;">
+            </a>
+            <figcaption>
+              Inpainting on a cat image: masked regions are resynthesized while the unmasked
+              background is kept close to the original.
+            </figcaption>
+          </figure>
+        </div>
+        
+        <!-- ==================== Row 3: Dog inpainting ==================== -->
+        <div class="figure grid-1">
+          <figure>
+            <a href="media/PartA/part1/7/inpainting_dog_grid.png" target="_blank">
+              <img src="media/PartA/part1/7/inpainting_dog_grid.png"
+                   alt="Dog inpainting grid"
+                   style="width:100%;max-width:1100px;">
+            </a>
+            <figcaption>
+              Inpainting on a dog image using the same mask-based CFG procedure.
+            </figcaption>
+          </figure>
+        </div>
+
+
+        <h4 id="p173">1.7.3 Text-Conditional Image-to-Image Translation</h4>
+        
+        <p>
+          Here I perform SDEdit-style editing, but now guided by a text prompt rather than
+          projecting purely onto the natural image manifold.  
+          I noise the Campanile (or my own images) at different levels  
+          <code>[1, 3, 5, 7, 10, 20]</code>, then denoise with CFG using a chosen text prompt.
+          The result gradually blends the structure of the original image with the semantics
+          of the text description.
+        </p>
+        
+        <!-- ==================== Rocket Ship ==================== -->
+        <div class="figure grid-1">
+          <figure>
+            <a href="media/PartA/part1/7/Rocket_ship_im2im_titles.png" target="_blank">
+              <img src="media/PartA/part1/7/Rocket_ship_im2im_titles.png"
+                   alt="Text-conditional image editing: rocket ship"
+                   style="width:100%;max-width:1100px;">
+            </a>
+            <figcaption>
+              Text-conditional edits with prompt <strong>"a rocket ship"</strong>.
+            </figcaption>
+          </figure>
+        </div>
+        
+        <!-- ==================== Dog ==================== -->
+        <div class="figure grid-1">
+          <figure>
+            <a href="media/PartA/part1/7/dog_im2im_titles.png" target="_blank">
+              <img src="media/PartA/part1/7/dog_im2im_titles.png"
+                   alt="Text-conditional image editing: dog"
+                   style="width:100%;max-width:1100px;">
+            </a>
+            <figcaption>
+              Text-conditional edits with prompt <strong>"a photo of a dog"</strong>.
+            </figcaption>
+          </figure>
+        </div>
+        
+        <!-- ==================== Hat Man ==================== -->
+        <div class="figure grid-1">
+          <figure>
+            <a href="media/PartA/part1/7/hatman_im2im_titles.png" target="_blank">
+              <img src="media/PartA/part1/7/hatman_im2im_titles.png"
+                   alt="Text-conditional image editing: man wearing a hat"
+                   style="width:100%;max-width:1100px;">
+            </a>
+            <figcaption>
+              Text-conditional edits with prompt <strong>"a man wearing a hat"</strong>.
+            </figcaption>
+          </figure>
+        </div>
+        
+        <h4 id="p18">1.8 Visual Anagrams</h4>
+        
+        <p>
+          To create visual anagrams, I modify the DDPM denoising loop so that at each
+          timestep I predict two CFG-guided noise estimates: one for the current image
+          with prompt <code>p₁</code>, and one for the vertically flipped image with
+          prompt <code>p₂</code>. I then flip the second noise estimate back, average
+          the two, and use this averaged noise in the reverse diffusion update.
+          The resulting image looks like prompt <code>p₁</code> when viewed upright,
+          but resembles prompt <code>p₂</code> when rotated 180°.
+          Below I show three such illusions; click any panel to enlarge.
+        </p>
+        
+        <!-- ========== Pair 0: campfire ↔ old man ========== -->
+        <div class="figure grid-2">
+          <figure>
+            <a href="media/PartA/part1/7/anagram_0_upright.png" target="_blank">
+              <img src="media/PartA/part1/7/anagram_0_upright.png"
+                   alt="Visual anagram upright: campfire"
+                   style="width:100%;max-width:520px;">
+            </a>
+            <figcaption>
+              Upright: <strong>"an oil painting of people around a campfire"</strong>
+            </figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/7/anagram_0_flipped.png" target="_blank">
+              <img src="media/PartA/part1/7/anagram_0_flipped.png"
+                   alt="Visual anagram flipped: old man"
+                   style="width:100%;max-width:520px;">
+            </a>
+            <figcaption>
+              Flipped 180°: <strong>"an oil painting of an old man"</strong>
+            </figcaption>
+          </figure>
+        </div>
+        
+        <!-- ========== Pair 1: castle ↔ dragon ========== -->
+        <div class="figure grid-2">
+          <figure>
+            <a href="media/PartA/part1/7/anagram_1_upright.png" target="_blank">
+              <img src="media/PartA/part1/7/anagram_1_upright.png"
+                   alt="Visual anagram upright: castle"
+                   style="width:100%;max-width:520px;">
+            </a>
+            <figcaption>
+              Upright:
+              <strong>"a medieval stone castle on a hill, cloudy sky, realistic oil painting"</strong>
+            </figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/7/anagram_1_flipped.png" target="_blank">
+              <img src="media/PartA/part1/7/anagram_1_flipped.png"
+                   alt="Visual anagram flipped: dragon"
+                   style="width:100%;max-width:520px;">
+            </a>
+            <figcaption>
+              Flipped 180°:
+              <strong>"a large green dragon breathing fire, fantasy art, glowing highlights"</strong>
+            </figcaption>
+          </figure>
+        </div>
+        
+        <!-- ========== Pair 2: valley ↔ Van Gogh portrait ========== -->
+        <div class="figure grid-2">
+          <figure>
+            <a href="media/PartA/part1/7/anagram_2_upright.png" target="_blank">
+              <img src="media/PartA/part1/7/anagram_2_upright.png"
+                   alt="Visual anagram upright: valley landscape"
+                   style="width:100%;max-width:520px;">
+            </a>
+            <figcaption>
+              Upright:
+              <strong>"a peaceful valley landscape with mountains and a river, cloudy sky, watercolor painting"</strong>
+            </figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/7/anagram_2_flipped.png" target="_blank">
+              <img src="media/PartA/part1/7/anagram_2_flipped.png"
+                   alt="Visual anagram flipped: Van Gogh portrait"
+                   style="width:100%;max-width:520px;">
+            </a>
+            <figcaption>
+              Flipped 180°:
+              <strong>"a portrait of a man in Van Gogh's style, expressive brush strokes, swirling background"</strong>
+            </figcaption>
+          </figure>
+        </div>
+
+
+        <h4 id="p19">1.9 Hybrid Images</h4>
+        
+        <p>
+          To build hybrid images with diffusion, I follow the “factorized diffusion” idea:
+          at each timestep I run the UNet twice with different prompts
+          <code>p₁</code> and <code>p₂</code>, obtain two CFG noise estimates
+          <code>ε₁</code> and <code>ε₂</code>, then apply a large Gaussian blur to get
+          the low-frequency component of <code>ε₁</code> and the high-frequency
+          component of <code>ε₂</code>. Their sum forms the composite noise used in the
+          DDPM reverse update. Visually, the resulting image looks like prompt
+          <code>p₁</code> from far away (low frequencies) but contains details from
+          prompt <code>p₂</code> up close (high frequencies).
+        </p>
+        
+        <div class="figure grid-2">
+          <figure>
+            <a href="media/PartA/part1/7/hybrid_0.png" target="_blank">
+              <img src="media/PartA/part1/7/hybrid_0.png"
+                   alt="Hybrid image: waterfalls + rocket ship">
+            </a>
+            <figcaption>
+              Hybrid 1 — low frequencies from
+              <em>"a lithograph of waterfalls"</em> +
+              high frequencies from
+              <em>"a rocket ship"</em>.
+            </figcaption>
+          </figure>
+        
+          <figure>
+            <a href="media/PartA/part1/7/hybrid_1.png" target="_blank">
+              <img src="media/PartA/part1/7/hybrid_1.png"
+                   alt="Hybrid image: man + skull lithograph">
+            </a>
+            <figcaption>
+              Hybrid 2 — low frequencies from
+              <em>"a photo of a man"</em> +
+              high frequencies from
+              <em>"a lithograph of a skull"</em>.
+            </figcaption>
+          </figure>
+        </div>
+
+    </section>
+
+
+    <!-- ========================== -->
+    <!--     PART 2: BELLS & W    -->
+    <!-- ========================== -->
+    <section class="part" id="part2">
+      <h2>Part 2: Bells &amp; Whistles</h2>
+    
+      <!-- 2.1 More Visual Anagrams -->
+      <h3>2.1 More Visual Anagrams</h3>
+      <p class="lead">
+        In this section, I extend the visual anagram idea from Part 1.8 by using
+        additional view transforms. For each pair, the same sampled image looks
+        like one concept in the upright view and another concept after applying
+        a transformation (rotation or color negation).
+      </p>
+    
+      <!-- Rot90 anagram: castle / dragon -->
+      <div class="figure grid-2">
+        <figure>
+          <a href="media/PartA/part2/bw_anagram_0_rot90_upright.png" target="_blank">
+            <img src="media/PartA/part2/bw_anagram_0_rot90_upright.png"
+                 alt="Visual anagram, upright view (castle)" />
+          </a>
+          <figcaption>
+            Rot-90 visual anagram (upright view).<br>
+            Interpreted as: <em>a medieval stone castle on a hill</em>.
+          </figcaption>
+        </figure>
+    
+        <figure>
+          <a href="media/PartA/part2/bw_anagram_0_rot90_transformed.png" target="_blank">
+            <img src="media/PartA/part2/bw_anagram_0_rot90_transformed.png"
+                 alt="Visual anagram, rotated view (dragon)" />
+          </a>
+          <figcaption>
+            Same sample rotated by 90°.<br>
+            Interpreted as: <em>a large green dragon breathing fire</em>.
+          </figcaption>
+        </figure>
+      </div>
+    
+      <!-- Negate anagram: man / skull -->
+      <div class="figure grid-2">
+        <figure>
+          <a href="media/PartA/part2/bw_anagram_1_negate_upright.png" target="_blank">
+            <img src="media/PartA/part2/bw_anagram_1_negate_upright.png"
+                 alt="Visual anagram, upright view (man)" />
+          </a>
+          <figcaption>
+            Negation visual anagram (upright view).<br>
+            Interpreted as: <em>a photo of a man</em>.
+          </figcaption>
+        </figure>
+    
+        <figure>
+          <a href="media/PartA/part2/bw_anagram_1_negate_transformed.png" target="_blank">
+            <img src="media/PartA/part2/bw_anagram_1_negate_transformed.png"
+                 alt="Visual anagram, negated view (skull)" />
+          </a>
+          <figcaption>
+            Same sample with pixel-wise color negation.<br>
+            Interpreted as: <em>a lithograph of a skull</em>.
+          </figcaption>
+        </figure>
+      </div>
+    
+      <!-- 2.2 Course Logo -->
+      <h3>2.2 Course Logo</h3>
+      <p class="lead">
+        Here I use text-conditioned image-to-image translation (with CFG) to turn a
+        base course logo into stylized variants using different logo prompts.
+      </p>
+    
+      <div class="figure grid-2">
+        <figure>
+          <a href="media/PartA/part2/course_logo_0.png" target="_blank">
+            <img src="media/PartA/part2/course_logo_0.png"
+                 alt="Course logo: camera lens with neural patterns" />
+          </a>
+          <figcaption>
+            Logo variant 1: <em>a camera lens with glowing neural patterns,
+            futuristic digital style</em>.
+          </figcaption>
+        </figure>
+    
+        <figure>
+          <a href="media/PartA/part2/course_logo_1.png" target="_blank">
+            <img src="media/PartA/part2/course_logo_1.png"
+                 alt="Course logo: geometric cube with perspective lines" />
+          </a>
+          <figcaption>
+            Logo variant 2: <em>a geometric cube with perspective lines
+            forming a computer vision logo</em>.
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+
+    <!-- ========================== -->
+    <!--        PART B START        -->
+    <!-- ========================== -->
+    <section class="part" id="partB">
+      <h2>PartB Flow Matching from Scratch!</h2>
+      <p class="lead">
+        In this part, I move from diffusion-style sampling to flow matching, training UNet-based models
+        to learn transport maps directly between noise and data.
+      </p>
+    </section>
+
+    <!-- ========================== -->
+    <!--  PART B1: SINGLE-STEP UNET -->
+    <!-- ========================== -->
+    <section class="part" id="partB1">
+      <h3>Part 1: Training a Single-Step Denoising UNet</h3>
+      <p class="lead">
+        I first implement a basic UNet and train it as a single-step denoiser, then evaluate its robustness
+        on different input distributions.
+      </p>
+    
+      <h4>1.1 Implementing the UNet Building Blocks</h4>
+      <p>
+        I follow the architecture specified in the handout and implement all core UNet components as small,
+        reusable modules. All convolutions are followed by <code>BatchNorm2d</code> and a
+        <code>GELU</code> non-linearity.
+      </p>
+    
+      <ul>
+        <li>
+          <b>Conv</b>: a resolution-preserving block
+          <code>Conv2d(kernel=3, stride=1, padding=1) → BatchNorm2d → GELU</code> that only changes the
+          number of channels. This is the basic feature extraction layer used throughout the network.
+        </li>
+        <li>
+          <b>DownConv</b>: a strided convolution
+          <code>Conv2d(kernel=3, stride=2, padding=1)</code> that downsamples the spatial resolution by 2
+          while increasing channels, forming the encoder path of the UNet.
+        </li>
+        <li>
+          <b>UpConv</b>: a transposed convolution
+          <code>ConvTranspose2d(kernel=4, stride=2, padding=1)</code> that upsamples the feature map by 2
+          to mirror the downsampling in the decoder path.
+        </li>
+        <li>
+          <b>Flatten</b>: an <code>AvgPool2d(kernel_size=7)</code> layer followed by GELU that compresses a
+          <code>7×7</code> feature map into <code>1×1</code>, serving as the bottleneck that aggregates
+          global information.
+        </li>
+        <li>
+          <b>Unflatten</b>: a transposed convolution
+          <code>ConvTranspose2d(kernel_size=7, stride=7)</code> (plus BatchNorm + GELU) that expands the
+          <code>1×1</code> bottleneck back to <code>7×7</code> spatial size.
+        </li>
+        <li>
+          <b>ConvBlock</b>: a deeper local processing block composed of
+          <code>Conv → Conv</code>, keeping height, width, and channels fixed but increasing model capacity.
+        </li>
+        <li>
+          <b>DownBlock</b>: a high-level encoder unit
+          <code>DownConv → ConvBlock</code>, which first downsamples and then refines features.
+        </li>
+        <li>
+          <b>UpBlock</b>: a high-level decoder unit
+          <code>UpConv → ConvBlock</code>, which upsamples the features and then refines them after
+          concatenating skip connections from the encoder.
+        </li>
+      </ul>
+    
+      <p>
+        These modules are later assembled into the full UNet with symmetric downsampling and upsampling
+        paths. The network takes a noisy image as input and learns a direct mapping to its clean version
+        using an L2 reconstruction loss.
+      </p>
+    </section>
+
+    <section class="part" id="partB2">
+      <h3>1.2 Using the UNet to Train a Denoiser</h3>
+    
+      <p>
+        To train the denoiser, we follow equation (B.2) and generate noisy-clean training pairs 
+        <code>(z, x)</code> from MNIST. Each clean digit <code>x</code> is normalized to <code>[0,1]</code>, 
+        and noise is added using:
+      </p>
+    
+      <pre><code>z = x + σ · ε, ε ~ N(0, I)</code></pre>
+    
+      <p>
+        I visualize how increasing <code>σ</code> affects the corrupted image. The figure below shows 
+        a single MNIST digit under noise levels 
+        <code>σ ∈ [0.0, 0.2, 0.4, 0.5, 0.6, 0.8, 1.0]</code>.
+        As expected, the image becomes progressively noisier, eventually turning into nearly pure noise.
+      </p>
+    
+      <figure>
+        <img src="media/PartB/part1/noise_process.png" 
+             alt="Visualization of noise process for sigmas 0.0 to 1.0"
+             style="width:100%; max-width:900px; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+        <figcaption>Figure: Increasing σ produces noisier MNIST samples.</figcaption>
+      </figure>
+    </section>
+
+
+    <section class="part" id="partB1-2">
+      <h3>1.2.1 Training</h3>
+    
+      <p>
+        I train the UNet denoiser on MNIST with a fixed noise level 
+        <code>σ = 0.5</code>. For each batch, fresh Gaussian noise is added so the
+        network observes different corrupted versions of the same digits across epochs,
+        which improves generalization. Training uses Adam with
+        <code>lr = 1e-4</code> for 5 epochs.
+      </p>
+    
+      <h4>Training Curve</h4>
+      <p>
+        The plot below shows the training loss over the entire optimization process.
+        The curve decreases smoothly, indicating stable learning.
+      </p>
+    
+      <figure>
+        <img src="media/PartB/part1/denoise_loss.png"
+             alt="Training loss curve"
+             style="width:100%; max-width:500px; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+        <figcaption>Figure: Training loss curve for σ = 0.5.</figcaption>
+      </figure>
+    
+      <h4>Denoising Results</h4>
+      <p>
+        I visualize test-set digits after 1 and 5 epochs of training.  
+        Each row shows: <strong>clean → noisy → denoised output</strong>.  
+        After epoch 1, the model already removes a noticeable amount of noise.
+        By epoch 5, the denoiser recovers clean digit structure much more sharply.
+      </p>
+    
+      <figure>
+        <img src="media/PartB/part1/denoise_1.png"
+             alt="Denoising results after 1 epoch"
+             style="width:100%; max-width:500px; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+        <figcaption>Figure: Test-set denoising results after epoch 1.</figcaption>
+      </figure>
+    
+      <figure>
+        <img src="media/PartB/part1/denoise_5.png"
+             alt="Denoising results after 5 epochs"
+             style="width:100%; max-width:500px; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+        <figcaption>Figure: Test-set denoising results after epoch 5.</figcaption>
+      </figure>
+    
+    </section>
+
+
+    <section class="part" id="partB1-3">
+      <h3>1.2.2 Out-of-Distribution Testing</h3>
+    
+      <p>
+        The UNet denoiser was trained only with a fixed noise level <code>σ = 0.5</code>.
+        To evaluate its robustness, I test the model on a wide range of unseen noise
+        levels:
+        <code>[0.0, 0.2, 0.4, 0.5, 0.6, 0.8, 1.0]</code>.  
+        For the same clean test digit, I progressively add stronger Gaussian noise and
+        then let the model attempt to denoise it.
+      </p>
+    
+      <p>
+        As expected, the model performs best near its training noise level (σ = 0.5),
+        and its performance degrades for very small or very large σ.  
+        When σ is extremely small, the model tends to “over-correct” details not meant
+        to be changed; when σ is large, the corrupted structure becomes too weak to
+        recover cleanly.
+      </p>
+    
+      <figure>
+        <img src="media/PartB/part1/ood_denoise.png"
+             alt="OOD denoising visualization"
+             style="width:100%; max-width:600px; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+        <figcaption>Figure: Out-of-distribution denoising results across noise levels σ ∈ [0.0, 1.0].</figcaption>
+      </figure>
+    
+    </section>
+
+    <section class="part" id="partB1-4">
+      <h3>1.2.3 Denoising Pure Noise</h3>
+    
+      <p class="lead">
+        In this section, I repeat the same training setup as in Part 1.2.1, but now
+        the UNet receives <em>pure Gaussian noise</em> as input, while the target remains
+        the clean MNIST digit. This forces the model to “denoise” random noise and
+        effectively learn what an average MNIST digit looks like.
+      </p>
+    
+      <p>
+        Since the network is trained with an MSE loss, it will learn to output
+        the pixelwise expectation of the training data whenever the input contains
+        no meaningful information. Because pure noise carries no signal about which
+        digit should be produced, the optimal prediction becomes the <strong>mean image</strong>
+        of the MNIST distribution.
+      </p>
+    
+      <h4>Training Loss Curve</h4>
+      <figure>
+        <img src="media/PartB/part1/purenoise_loss.png"
+             alt="Pure noise training loss"
+             style="width:100%; max-width:500px; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+        <figcaption>Figure: Training loss when the UNet is trained to map pure noise → MNIST digits.</figcaption>
+      </figure>
+    
+    
+      <h4>Generated Samples After Epoch 1</h4>
+      <figure>
+        <img src="media/PartB/part1/purenoise_1.png"
+             alt="Pure noise epoch 1"
+             style="width:100%; max-width:600px; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+        <figcaption>Figure: Model outputs at epoch 1. Noise already begins drifting toward blurry digit-like shapes.</figcaption>
+      </figure>
+    
+    
+      <h4>Generated Samples After Epoch 5</h4>
+      <figure>
+        <img src="media/PartB/part1/purenoise_5.png"
+             alt="Pure noise epoch 5"
+             style="width:100%; max-width:600px; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+        <figcaption>Figure: After 5 epochs, the model outputs converge toward average MNIST digit templates.</figcaption>
+      </figure>
+    
+    
+      <h4>Observed Patterns</h4>
+      <p>
+        The denoiser consistently outputs <strong>blurry digit-like blobs</strong> even though
+        the inputs were purely random noise. These shapes resemble the <em>centroid</em>
+        of the MNIST dataset.
+      </p>
+    
+      <p>
+        This occurs because, under an MSE objective, the model learns the conditional
+        expectation:
+      </p>
+    
+      <pre style="background:#f7f7f7; padding:12px; border-radius:6px;">
+    E[x | z] ,  where z is the noisy input.
+      </pre>
+    
+      <p>
+        When <code>z</code> is pure noise, it contains no information about any specific
+        MNIST digit, and thus:
+      </p>
+    
+      <pre style="background:#f7f7f7; padding:12px; border-radius:6px;">
+    E[x]  =  the mean MNIST digit
+      </pre>
+    
+      <p>
+        Therefore, the UNet converges to producing average digit structures instead
+        of sampling diverse digits. This demonstrates that denoising pure noise
+        with MSE is <strong>not generative</strong>, but instead collapses toward the dataset
+        mean.
+      </p>
+    
+    </section>
+
+
+    <!-- ========================== -->
+    <!--  PART B2: FLOW MATCHING    -->
+    <!-- ========================== -->
+    <section class="part" id="partB2">
+      <h3>Part 2: Training a Flow Matching Model</h3>
+      <p class="lead">
+        Next, I extend the UNet with time conditioning and train it using a flow-matching
+        objective, then use it as a generative model by integrating the learned flow from
+        pure noise to data.
+      </p>
+    
+      <h4 id="pB21">2.1 Adding Time Conditioning to UNet</h4>
+      <p>
+        To inject the scalar time variable <code>t ∈ [0, 1]</code> into the network, I first
+        define an MLP block <code>FCBlock</code>:
+        a two-layer fully connected network with a GELU nonlinearity,
+        mapping a 1-D input to a vector of size <code>out_channels</code>.
+        This block is used to turn the scalar <code>t</code> into channel-wise
+        modulation factors.
+      </p>
+    
+      <p>
+        The <code>TimeConditionalUNet</code> keeps the same encoder–decoder backbone
+        as the Part&nbsp;1 UNet (three downsampling stages, a bottleneck with
+        <code>Flatten</code>/<code>Unflatten</code>, and two upsampling stages with skip
+        connections).  Let <code>D</code> be the hidden width.
+        I add two MLPs:
+      </p>
+      <ul>
+        <li><code>fc_unflatten: t → ℝ<sup>2D</sup></code>, used to modulate the
+          bottleneck features just after <code>Unflatten</code>, and</li>
+        <li><code>fc_up1: t → ℝ<sup>D</sup></code>, used to modulate the first
+          upsampling block.</li>
+      </ul>
+    
+      <p>
+        In the forward pass, I compute encoder features
+        <code>x1</code>, <code>x2</code>, <code>x3</code>, then flatten/unflatten
+        <code>x3</code> to get a bottleneck feature <code>b</code>.
+        I embed the normalized time <code>t</code> with the two
+        <code>FCBlock</code>s:
+      </p>
+      <ul>
+        <li><code>t1 = fc_unflatten(t)</code> is reshaped to
+          <code>(N, 2D, 1, 1)</code> and multiplied into <code>b</code>, so the
+          bottleneck is scaled by time.</li>
+        <li>After the first <code>UpBlock</code>, I compute
+          <code>t2 = fc_up1(t)</code>, reshape it to <code>(N, D, 1, 1)</code>,
+          and multiply it into the upsampled feature map.</li>
+      </ul>
+      <p>
+        The rest of the UNet (second upsampling stage and final
+        convolutional head) is unchanged. The output <code>uθ(x<sub>t</sub>, t)</code>
+        has the same shape as the input image and represents a predicted flow field.
+      </p>
+    
+    
+    </section>
+
+      <h4 id="pB22">2.2 Training the Time-Conditioned UNet</h4>
+      <p>
+        To learn the flow field <code>u_\theta(x_t, t)</code> I train the time-conditional UNet on
+        MNIST using the flow-matching loss from Algorithm&nbsp;B.1.
+        For each mini-batch I sample clean digits <code>x₁</code> from the training set,
+        draw Gaussian noise <code>x₀ ~ N(0, I)</code>, and pick a random discrete time index
+        <code>k ∈ {0, …, T−1}</code> which is converted to a normalized time
+        <code>t = (k + 0.5)/T</code>.
+        I then form the interpolated state
+        <code>x_t = (1 − t) x₀ + t x₁</code>, evaluate the UNet at <code>(x_t, t)</code>,
+        and minimize the mean-squared error between the predicted flow and the ground-truth
+        flow <code>x₁ − x₀</code>.
+      </p>
+
+      <p>
+        The model is trained on the MNIST training split (batch size 64) for
+        <code>num_epochs = 10</code> with Adam and an initial learning rate
+        <code>1e−2</code>.  I use an exponential learning-rate scheduler with
+        <code>γ = 0.1<sup>1/num_epochs</sup></code>, so that the learning rate decays
+        by one order of magnitude over the full run.  After every epoch I step the scheduler
+        and save a checkpoint of the flow-matching model for later sampling experiments.
+      </p>
+
+      <figure>
+        <img src="media/PartB/part2/tc_loss.png"
+             alt="Training loss curve for the time-conditioned flow-matching UNet"
+            style="width:100%; max-width:500px; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+        <figcaption>
+          Training loss (MSE) for the time-conditioned UNet trained with the flow-matching
+          objective. The loss decreases smoothly over iterations, indicating that the model
+          is learning a consistent velocity field from noise to the MNIST data manifold.
+        </figcaption>
+      </figure>
+
+      <h4 id="pB23">2.3 Sampling from the UNet</h4>
+      <p>
+        After training the time-conditioned UNet with the flow-matching objective, I generate samples
+        following Algorithm&nbsp;B.2. Starting from pure Gaussian noise, the model performs
+        forward-Euler integration across <code>T = 50</code> timesteps, progressively pushing the image
+        along the learned flow field toward the MNIST data manifold.  
+      </p>
+
+      <p>
+        Below I show sampling results after <strong>1 epoch</strong>, <strong>5 epochs</strong>,
+        and <strong>10 epochs</strong> of training. As expected, early-epoch samples retain noise-like
+        structure, while later epochs produce clearer and more coherent digit-like shapes.
+      </p>
+
+      <figure>
+        <img src="media/PartB/part2/tc_samples_1.png"
+             alt="Samples at epoch 1" style="width:90%;">
+        <figcaption>Sampling results after 1 epoch — still mostly noise with weak emerging structure.</figcaption>
+      </figure>
+
+      <figure>
+        <img src="media/PartB/part2/tc_samples_5.png"
+             alt="Samples at epoch 5" style="width:90%;">
+        <figcaption>Sampling results after 5 epochs — clearer digit strokes begin to appear.</figcaption>
+      </figure>
+
+      <figure>
+        <img src="media/PartB/part2/tc_samples_10.png"
+             alt="Samples at epoch 10" style="width:90%;">
+        <figcaption>Sampling results after 10 epochs — digits are reasonably legible and structurally consistent.</figcaption>
+      </figure>
+
+
+      <h4 id="pB24">2.4 Adding Class-Conditioning to UNet</h4>
+      <p>
+        To gain more control over generation, I extend the time-conditioned UNet into a
+        <em>class-conditional</em> model. The network now predicts a flow
+        <span class="math">u_\theta(x_t, t, c)</span> that depends on both time
+        <span class="math">t</span> and a digit class label
+        <span class="math">c \in \{0,\dots,9\}</span>.
+        Class information is encoded as a one-hot vector and injected via two extra fully-connected
+        <code>FCBlock</code>s, in parallel with the time embedding.
+      </p>
+
+      <p>
+        Concretely, I reuse the UNet backbone from Section&nbsp;2.1 and add four MLPs:
+        <code>fc1_t</code>, <code>fc2_t</code> for time, and
+        <code>fc1_c</code>, <code>fc2_c</code> for class. The first pair modulates the bottleneck
+        feature right after <code>Unflatten</code>, while the second pair modulates the feature after
+        the first upsampling block:
+      </p>
+
+      <ul>
+        <li>
+          At the bottleneck I compute
+          <code>t1 = fc1_t(t)</code>, <code>c1 = fc1_c(c_onehot)</code> and apply
+          <code>unflatten = c1 * unflatten + t1</code>, so both time and class can rescale and shift
+          the 2D feature map.
+        </li>
+        <li>
+          After the first up block I compute
+          <code>t2 = fc2_t(t)</code>, <code>c2 = fc2_c(c_onehot)</code> and update
+          <code>up1 = c2 * up1 + t2</code>, injecting conditioning again at a higher resolution.
+        </li>
+      </ul>
+
+      <p>
+        To enable <em>classifier-free guidance</em>, during training I randomly drop the class
+        conditioning vector with probability <span class="math">p_\text{uncond}=0.1</span>.
+        Implementation-wise, I sample a Bernoulli mask for each sample in the batch and multiply the
+        one-hot class embedding by this mask; when the mask is zero the UNet effectively becomes an
+        unconditional flow model. The loss is the same flow-matching objective as before:
+        the network is trained to regress the ground-truth flow
+        <span class="math">x_1 - x_0</span> from noisy points
+        <span class="math">x_t = (1-t)x_0 + t x_1</span>.
+      </p>
+
+      <p>
+        At sampling time, I generate digits of a chosen class by running two forward passes
+        at each Euler step: one conditional (<code>mask = 1</code>) and one unconditional
+        (<code>mask = 0</code>). Their outputs are combined using classifier-free guidance
+        <code>u = u_uncond + s * (u_cond - u_uncond)</code> with guidance scale
+        <code>s</code> (I use <code>s = 5.0</code>), and I integrate this velocity field over
+        <code>T</code> timesteps starting from Gaussian noise. This produces samples that follow
+        the chosen digit class while still remaining reasonably diverse.
+      </p>
+
+      <h4 id="pB25">2.5 Training the UNet</h4>
+
+      <p>
+        Training the class-conditional UNet follows exactly the same flow-matching routine introduced
+        in Sections&nbsp;2.2 and 2.3. The only modification is that the network now receives an
+        additional conditioning vector <em>c</em>, representing the digit label (0–9). During training,
+        I apply <strong>classifier-free guidance</strong>: with probability
+        <span class="math">p_{\text{uncond}} = 0.1</span>, the one-hot class embedding is replaced by
+        a zero-vector. This teaches the UNet to operate in both conditional and unconditional modes,
+        enabling strong guided sampling later.
+      </p>
+
+      <p>
+        I train for 10 epochs using Adam with learning rate <code>1e-2</code> and an exponential decay
+        schedule such that the final learning rate is <code>0.1×</code> the initial value. As in the
+        previous part, I checkpoint the model after every epoch so I can later generate samples at
+        different training stages (1, 5, 10 epochs).
+      </p>
+
+      <h5>Training Loss Curve</h5>
+      <p>
+        The figure below shows the full training loss curve for the class-conditional UNet. The curve
+        decreases smoothly, indicating stable convergence under the flow-matching objective.
+      </p>
+
+        <div style="display: flex; justify-content: center;">
+            <img src="media/PartB/part2/cc_fm_train_loss.png" 
+                 alt="Class-conditional FM training loss" 
+                 style="width:100%; max-width:500px; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
+        </div>
+
+
+
+      <h4 id="pB26">2.6 Sampling from the UNet</h4>
+
+      <p>
+        With the class-conditional flow-matching UNet trained, we can now generate MNIST digits by
+        integrating the learned velocity field from pure noise to the data distribution. We follow
+        Algorithm&nbsp;B.4, which evaluates the UNet twice at every timestep: once with the true
+        class label (conditional branch) and once with the class embedding masked out (unconditional
+        branch). 
+
+      <h5>Sampling Results</h5>
+      <p>
+        Below we show the sampling outputs from the class-conditional UNet at training epochs 1, 5,
+        and 10. As the model trains longer, the generated digits become cleaner, sharper, and more
+        class-consistent. Class conditioning significantly accelerates convergence compared to the
+        time-only model from Part&nbsp;2.3.
+      </p>
+
+      <figure class="sample-grid">
+        <img src="media/PartB/part2/cc_samples_epoch_1.png"
+             alt="Class-conditional samples at epoch 1" style="width:90%;">
+        <figcaption>Epoch 1</figcaption>
+      </figure>
+
+      <figure class="sample-grid">
+        <img src="media/PartB/part2/cc_samples_epoch_5.png"
+             alt="Class-conditional samples at epoch 5"style="width:90%;">
+        <figcaption>Epoch 5</figcaption>
+      </figure>
+
+      <figure class="sample-grid">
+        <img src="media/PartB/part2/cc_samples_epoch_10.png"
+             alt="Class-conditional samples at epoch 10"style="width:90%;">
+        <figcaption>Epoch 10</figcaption>
+      </figure>
+
+
+
+    </section>
+
+    <!-- ========================== -->
+    <!--   PART B3 BELLS & WHISTLES -->
+    <!-- ========================== -->
+      <h3 id="partB3">Part 3: Bells &amp; Whistles – A Better Time-Conditioned UNet</h3>
+      <p class="lead">
+        To improve the purely time-conditioned flow-matching UNet from Part&nbsp;2.3, I increased the
+        model capacity and trained it longer with a smaller learning rate. This produces much cleaner
+        unconditional samples, closing part of the gap to the class-conditional model.
+      </p>
+
+      <h4>3.1 Method: Making the Time-Only UNet Stronger</h4>
+      <p>
+        I keep exactly the same flow-matching objective as in Part&nbsp;2.2, but change the UNet and
+        training schedule:
+      </p>
+      <ul>
+        <li>
+          <strong>Wider UNet.</strong> I double the hidden width from
+          <code>D = 64</code> to <code>D = 128</code>, so every Conv/Down/Up block has more channels.
+          This gives the time-conditioned UNet significantly more expressive power while keeping the
+          overall architecture unchanged.
+        </li>
+        <li>
+          <strong>Longer &amp; gentler training.</strong> Instead of training for 10 epochs with
+          <code>lr = 1e-2</code>, I train for <strong>20 epochs</strong> with a much smaller
+          <strong>learning rate 3×10<sup>-4</sup></strong>, still using an exponential LR decay
+          (gamma <code>= 0.1<sup>1/20</sup></code>). This makes optimization more stable and lets
+          the larger network converge without exploding gradients.
+        </li>
+        <li>
+          <strong>Same flow-matching setup.</strong> I keep <code>num_ts = 50</code> timesteps and
+          the same linear interpolation scheme between <em>x₀</em> (Gaussian noise) and
+          <em>x₁</em> (MNIST digit), so any improvement comes purely from the architecture and
+          schedule, not from changing the objective.
+        </li>
+      </ul>
+
+      <figure class="sample-grid">
+        <img src="media/PartB/part2/fm_improved_train_loss.png"
+             alt="Improved time-only UNet training loss curve"style="width:60%;">
+        <figcaption>
+          Training loss curve for the improved time-conditioned UNet. Compared to the original
+          time-only model, the loss decreases more smoothly and reaches a lower value without the
+          spikes caused by the larger learning rate.
+        </figcaption>
+      </figure>
+
+      <h4>3.2 Improved Samples</h4>
+      <p>
+        After 20 epochs, I sample from the improved time-only model using the same Euler integration
+        procedure as in Part&nbsp;2.3. The grid below shows 4×10 unconditional samples.
+      </p>
+
+      <figure class="sample-grid">
+        <img src="media/PartB/part2/fm_improved_samples_epoch_20.png"
+             alt="Improved time-conditioned UNet samples at epoch 20"style="width:90%;">
+        <figcaption>
+          Samples from the improved time-conditioned UNet at epoch 20. Digits are much sharper and
+          more MNIST-like than the original Part&nbsp;2.3 result.
+        </figcaption>
+      </figure>
+
+
+
+
+  </div>
+</body>
+</html>
